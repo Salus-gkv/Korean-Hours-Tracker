@@ -76,20 +76,6 @@
     color: var(--muted);
     margin-bottom: 6px;
   }
-  .quick-row { display: flex; gap: 8px; margin-bottom: 10px; }
-  .quick-row button {
-    flex: 1;
-    min-height: 44px;
-    border: 1px solid var(--line);
-    background: var(--paper);
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--accent-dark);
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .quick-row button:active { background: var(--line); }
   .hours-input-row {
     display: flex;
     align-items: baseline;
@@ -280,16 +266,10 @@
     <section id="screen-log" class="screen active">
       <div class="log-card">
         <div class="field">
-          <label for="hoursInput">Hours</label>
-          <div class="quick-row">
-            <button type="button" class="quickBtn" data-h="0.5">0.5</button>
-            <button type="button" class="quickBtn" data-h="1">1</button>
-            <button type="button" class="quickBtn" data-h="1.5">1.5</button>
-            <button type="button" class="quickBtn" data-h="2">2</button>
-          </div>
+          <label for="minutesInput">Minutes</label>
           <div class="hours-input-row">
-            <input type="number" id="hoursInput" inputmode="decimal" step="0.25" min="0" max="24" placeholder="0" autofocus>
-            <span class="unit">hrs</span>
+            <input type="number" id="minutesInput" inputmode="numeric" step="5" min="1" max="1440" placeholder="0" autofocus>
+            <span class="unit">min</span>
           </div>
         </div>
         <div class="field">
@@ -329,7 +309,7 @@
 // Paste the Apps Script /exec URL here after deploying (build step 3).
 const SHEET_URL = 'PASTE_EXEC_URL_HERE';
 
-const TYPES = ['Speaking', 'Vocab', 'Studying'];
+const TYPES = ['Vocab', 'Studying', 'Speaking'];
 const MS_DAY = 86400000;
 // 1970-01-05 was a Monday; epoch day 0 is 1970-01-01, so Mondays are day 4 + 7n.
 const MONDAY_OFFSET = 4;
@@ -375,6 +355,13 @@ function mdLabel(dayNum) {
 
 function fmtHours(h) {
   return String(Math.round(h * 100) / 100);
+}
+
+// Sessions are typed in minutes and stored as decimal hours, so short ones
+// read as "40 min" rather than "0.67 hrs". Charts and stats stay in hours.
+function fmtDuration(h) {
+  const mins = Math.round(h * 60);
+  return mins < 60 ? `${mins} min` : `${fmtHours(h)} hrs`;
 }
 
 /* ---------- data ---------- */
@@ -430,7 +417,7 @@ function escapeHtml(str) {
 
 /* ---------- Log screen ---------- */
 
-const hoursInput = document.getElementById('hoursInput');
+const minutesInput = document.getElementById('minutesInput');
 const dateInput = document.getElementById('dateInput');
 const noteInput = document.getElementById('noteInput');
 const saveBtn = document.getElementById('saveBtn');
@@ -453,10 +440,6 @@ function renderTypeRow() {
 }
 renderTypeRow();
 
-document.querySelectorAll('.quickBtn').forEach(b => {
-  b.addEventListener('click', () => { hoursInput.value = b.dataset.h; });
-});
-
 function renderTodayTotal() {
   const today = todayStr();
   const mine = entries.filter(e => e.date === today);
@@ -465,7 +448,7 @@ function renderTodayTotal() {
     return;
   }
   const total = mine.reduce((s, e) => s + e.hours, 0);
-  todayTotalEl.textContent = `Today: ${fmtHours(total)} hrs across ${mine.length} session${mine.length === 1 ? '' : 's'}`;
+  todayTotalEl.textContent = `Today: ${fmtDuration(total)} across ${mine.length} session${mine.length === 1 ? '' : 's'}`;
 }
 
 let confirmTimer = null;
@@ -477,13 +460,14 @@ function setConfirm(msg, isErr) {
 }
 
 saveBtn.addEventListener('click', async () => {
-  const hours = parseFloat(hoursInput.value);
+  const minutes = parseFloat(minutesInput.value);
   const date = dateInput.value;
   const note = noteInput.value.trim();
-  if (!isFinite(hours) || hours <= 0 || hours > 24 || !date) {
-    setConfirm('Enter the hours you studied.', true);
+  if (!isFinite(minutes) || minutes <= 0 || minutes > 1440 || !date) {
+    setConfirm('Enter the minutes you studied.', true);
     return;
   }
+  const hours = Math.round((minutes / 60) * 10000) / 10000;
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving...';
   confirmMsg.classList.remove('err');
@@ -495,12 +479,12 @@ saveBtn.addEventListener('click', async () => {
     entries.push({ ...entry, logged: new Date().toISOString() });
     sortEntries();
     setConfirm('Saved.', false);
-    hoursInput.value = '';
+    minutesInput.value = '';
     noteInput.value = '';
     renderTodayTotal();
     renderTrends();
   } catch (e) {
-    // Leave the typed hours in place so nothing is lost.
+    // Leave the typed minutes in place so nothing is lost.
     setConfirm('Could not save. Check your connection and try again.', true);
   }
   saveBtn.disabled = false;
@@ -722,7 +706,7 @@ function renderTrends() {
   entriesListEl.innerHTML = '<h3>Recent sessions</h3>' + recent.map(e =>
     `<div class="entry-row">
        <span class="d">${fmtDate(e.date)}${e.type ? `<span class="tag">${escapeHtml(e.type)}</span>` : ''}${e.note ? `<span class="n">${escapeHtml(e.note)}</span>` : ''}</span>
-       <span class="h">${fmtHours(e.hours)} hrs</span>
+       <span class="h">${fmtDuration(e.hours)}</span>
      </div>`
   ).join('');
 }

@@ -1,7 +1,7 @@
 # Korean Hours (Korean-Hours-Tracker)
 
-Single-page app for logging Korean study sessions (decimal hours + type + date + optional note),
-with a Trends screen that buckets hours by day/week/fortnight/month.
+Single-page app for logging Korean study sessions. Sessions are typed in MINUTES and stored as
+decimal hours; the Trends screen buckets those hours by day/week/fortnight/month.
 Static site on GitHub Pages, no login, one user (Grace).
 Meant to be "Added to Home Screen" on iOS for a ~2-tap logging flow.
 
@@ -13,7 +13,7 @@ Meant to be "Added to Home Screen" on iOS for a ~2-tap logging flow.
 ## Files (repo root)
 - `index.html`: the whole app (HTML/CSS/JS, no framework). Chart.js 4.4.1 from cdnjs, the only dependency.
 - `manifest.json`: PWA manifest.
-- `favicon-32.png`, `apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png`: 한 glyph on the accent-green tile.
+- `favicon-32.png`, `apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png`: 한 glyph, paper-white on the accent-green tile, no other ornament.
 - `icon-source.svg`: the source the PNGs were rendered from. To regenerate:
   `qlmanage -t -s 512 -o . icon-source.svg` then `sips -z <n> <n> ... --out <file>`.
 - `apps-script.gs`: a copy of the backend code, kept here for reference. The live copy lives in
@@ -49,7 +49,7 @@ The Weight Log still has the rollover bug; do not copy its `todayStr`.
 
 ## Design tokens (shared with the Weight Log; keep them in sync)
 `--ink #1F2A24`, `--paper #F6F4EF`, `--line #D8D2C4`, `--accent #4B6358`, `--accent-dark #37493F`,
-`--gold #E7B45A` (trend line, icon bar), `--clay #B5654A` (errors only), `--muted #7C7566`.
+`--gold #E7B45A` (trend line only), `--clay #B5654A` (errors only), `--muted #7C7566`.
 System font stack, content capped at 480px, cards white with 1px `--line` and 14px radius,
 tap targets at least 44px.
 
@@ -59,6 +59,14 @@ tap targets at least 44px.
 - Every load fetches live from Apps Script, so a cold open takes a second or two on mobile.
   Logging does not wait for the fetch, so only Trends feels it.
 - Hours are decimals (1.5), not `1h 30m`. One number per entry, easy to sum.
+- Entry is in minutes, storage is in hours. `saveBtn` divides by 60 and rounds to 4 decimals before
+  POSTing, so the sheet stays in the decimal hours the Trends screen and the Apps Script expect.
+  Typing "45" is less thought after a session than converting to 0.75 in your head.
+- `fmtDuration` shows a sub-hour span as "45 min" and anything longer as hours, on the Log screen's
+  today line and in the Recent sessions rows only. Charts, stats and the by-type breakdown are
+  always hours, so the axis stays comparable across buckets.
+- No quick-add hour chips. They were in the original spec and were cut; minutes are typed directly.
+- Type chip order is Vocab, Studying, Speaking, and the default when nothing is stored is Studying.
 - Study type defaults to the last one used (localStorage `khType`), so the usual case is still
   zero extra taps while the column stays populated.
 - No weekly goal line and no `% of goal` card. Considered and skipped; add only if asked.
