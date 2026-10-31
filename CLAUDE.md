@@ -23,7 +23,10 @@ Meant to be "Added to Home Screen" on iOS for a ~2-tap logging flow.
 - Sheet tab `Log`, columns: A Date | B Hours | C Note | D Logged | E Type.
 - Column E holds ONE OR MORE types, comma-joined in TYPES order, e.g. `Vocab, Speaking`.
   A session is always one row; it is never split into a row per type.
-- `const SHEET_URL` at the top of index.html points at the Apps Script web app `/exec` URL.
+- `const SHEET_URL` at the top of index.html holds the deployed `/exec` URL. The repo is PUBLIC,
+  so that URL is public too, and it grants read AND write on the sheet. Grace agreed to this
+  tradeoff on 2026-10-31 for free Pages hosting; if the link ever needs revoking, redeploy the
+  Apps Script as a new deployment and paste the new URL here.
   - `doGet` returns `[{date, hours, note, logged, type}, ...]`
   - `doPost` takes `{date, hours, note, type}` and ALWAYS appends a row.
 - Every save appends. Four sessions in one day are four rows; the Trends screen sums them per day.
