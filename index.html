@@ -210,6 +210,7 @@
     padding: 12px 14px;
     text-align: center;
   }
+  .stat.stat-wide { grid-column: 1 / -1; }
   .stat .num { font-size: 20px; font-weight: 600; }
   .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .breakdown { margin-top: 20px; }
@@ -310,6 +311,7 @@
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwpmi7-HEioMBH-aBQjWs74yvIX7xzQ9Oi475cWZf-CO7JuMuppDourABGzvXbxLSvC/exec';
 
 const TYPES = ['Vocab', 'Studying', 'Speaking'];
+const WEEKLY_GOAL_HOURS = 10;   // the bar a Mon-Sun week has to clear to count as met
 const MS_DAY = 86400000;
 // 1970-01-05 was a Monday; epoch day 0 is 1970-01-01, so Mondays are day 4 + 7n.
 const MONDAY_OFFSET = 4;
@@ -351,13 +353,6 @@ function todayStr() {
 function dayNumFromISO(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return Math.floor(Date.UTC(y, m - 1, d) / MS_DAY);
-}
-
-function isoFromDayNum(n) {
-  const d = new Date(n * MS_DAY);
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${d.getUTCFullYear()}-${m}-${day}`;
 }
 
 function fmtDate(iso) {
@@ -617,14 +612,23 @@ function movingAverage(values, window) {
   });
 }
 
-function currentStreak() {
-  const days = new Set(entries.map(e => e.date));
-  let n = dayNumFromISO(todayStr());
-  // Today not logged yet shouldn't drop a streak that's alive through yesterday.
-  if (!days.has(isoFromDayNum(n))) n -= 1;
-  let streak = 0;
-  while (days.has(isoFromDayNum(n))) { streak++; n--; }
-  return streak;
+// Every Mon-Sun week the window touches, oldest first, zeros included.
+// Both the weekly average and the goal count read from this one list, so they can
+// never disagree about what a week is. Weeks are clipped to the window, so the
+// oldest and the current week may be partial.
+function weeklyTotals(fromDay, toDay) {
+  const sums = new Map();
+  for (const e of entries) {
+    const n = dayNumFromISO(e.date);
+    if (n < fromDay || n > toDay) continue;
+    const wk = Math.floor((n - MONDAY_OFFSET) / 7);
+    sums.set(wk, (sums.get(wk) || 0) + e.hours);
+  }
+  const first = Math.floor((fromDay - MONDAY_OFFSET) / 7);
+  const last = Math.floor((toDay - MONDAY_OFFSET) / 7);
+  const out = [];
+  for (let w = first; w <= last; w++) out.push(sums.get(w) || 0);
+  return out;
 }
 
 function renderTrends() {
@@ -716,20 +720,38 @@ function renderTrends() {
   });
 
   // ---- stats, for the visible window ----
+  // The first four cards describe the window the chart is showing; the wide card
+  // below them is every session ever. Keeping that split visible is deliberate --
+  // on the Day period with a short history the two totals match, which reads as a
+  // duplicated number unless the window is spelled out.
+  const todayNum = dayNumFromISO(todayStr());
+  const windowStart = buckets[0].startDay;
+  const windowDays = Math.max(1, todayNum - windowStart + 1);
+  const windowLabel = {
+    day: 'Total, last 30 days',
+    week: 'Total, last 12 weeks',
+    fort: 'Total, last 24 weeks',
+    month: 'Total, last 12 months'
+  }[currentPeriod];
+
   const total = values.reduce((s, v) => s + v, 0);
-  const avg = total / buckets.length;
-  const perLabel = { day: 'Avg / day', week: 'Avg / week', fort: 'Avg / 2 wks', month: 'Avg / month' }[currentPeriod];
+  const avgDay = total / windowDays;
+  const weeks = weeklyTotals(windowStart, todayNum);
+  const avgWeek = weeks.length ? weeks.reduce((a, b) => a + b, 0) / weeks.length : 0;
+  const met = weeks.filter(w => w >= WEEKLY_GOAL_HOURS).length;
+
   const allTime = entries.reduce((s, e) => s + e.hours, 0);
-  const streak = currentStreak();
+  const round1 = n => Math.round(n * 10) / 10;
+
   statsGrid.innerHTML = `
-    <div class="stat"><div class="num">${fmtHours(Math.round(total * 10) / 10)}</div><div class="lbl">Total (shown)</div></div>
-    <div class="stat"><div class="num">${fmtHours(Math.round(avg * 10) / 10)}</div><div class="lbl">${perLabel}</div></div>
-    <div class="stat"><div class="num">${streak}</div><div class="lbl">Day streak</div></div>
-    <div class="stat"><div class="num">${fmtHours(Math.round(allTime * 10) / 10)}</div><div class="lbl">Hours all time</div></div>
+    <div class="stat"><div class="num">${fmtHours(round1(total))}</div><div class="lbl">${windowLabel}</div></div>
+    <div class="stat"><div class="num">${fmtHours(round1(avgDay))}</div><div class="lbl">Avg / day</div></div>
+    <div class="stat"><div class="num">${fmtHours(round1(avgWeek))}</div><div class="lbl">Avg / week (Mon&ndash;Sun)</div></div>
+    <div class="stat"><div class="num">${met} / ${weeks.length}</div><div class="lbl">Weeks met (${WEEKLY_GOAL_HOURS} hrs)</div></div>
+    <div class="stat stat-wide"><div class="num">${fmtHours(round1(allTime))}</div><div class="lbl">Hours all time, across ${entries.length} session${entries.length === 1 ? '' : 's'}</div></div>
   `;
 
   // ---- hours by type, for the visible window ----
-  const windowStart = buckets[0].startDay;
   const inWindow = entries.filter(e => dayNumFromISO(e.date) >= windowStart);
   const byType = new Map();
   for (const e of inWindow) {

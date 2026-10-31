@@ -69,6 +69,17 @@ normal case: a home-screen app is RESUMED, not reloaded, so the page can outlive
 Trends tab is opened. Keep the optimistic local append — it is what makes logging feel instant —
 but never make it the only writer of `entries`.
 
+## Stat cards
+Four cards describe the VISIBLE WINDOW, and a fifth wide one is all time. The window cards name
+their span ("Total, last 30 days") because with a short history the two totals are identical and
+read as a duplicated number otherwise. That ambiguity is what prompted the rewrite.
+- Avg / day = window total / days in the window, not per bucket.
+- Avg / week and Weeks met both read from `weeklyTotals()`, one list of Mon-Sun weeks clipped to
+  the window, so they can never disagree about what a week is. The oldest and current weeks may be
+  partial, and an in-progress week counts as unmet until it clears the bar.
+- `WEEKLY_GOAL_HOURS` (10) is the threshold; a week counts when it is >= that, so exactly 10 meets.
+- There is no day-streak card. Grace removed it on 2026-10-31; `isoFromDayNum` went with it.
+
 ## Trends bucketing
 - Day = last 30 days, Week = last 12 weeks, 2 Weeks = last 12 fortnights, Month = last 12 calendar months.
 - Weeks and fortnights start Monday, anchored on epoch day 4 (1970-01-05 was a Monday), so buckets
