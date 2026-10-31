@@ -52,6 +52,14 @@ nothing, and the session list renders `NaN/NaN/`. Caught on the first live write
 `loadEntries` now drops non-`YYYY-MM-DD` rows and shows a banner saying how many, so if this ever
 recurs it is loud rather than silent. The banner is the symptom; the script is the cause.
 
+The duck-type was seen to fail too, so `asDateString` no longer trusts any single check: it formats
+a real date, passes through an already-ISO string, and otherwise RE-PARSES the string (which still
+contains its year) before falling back to the bare slice. Never reduce it to one branch.
+
+`doGet` answers `?probe=1` with `{version: SCRIPT_VERSION}`. Curl that before debugging anything
+else — if the number is behind `SCRIPT_VERSION` in this repo's apps-script.gs, the deployment is
+serving stale code and the only fix is Manage deployments -> Edit -> New version.
+
 ## Trends bucketing
 - Day = last 30 days, Week = last 12 weeks, 2 Weeks = last 12 fortnights, Month = last 12 calendar months.
 - Weeks and fortnights start Monday, anchored on epoch day 4 (1970-01-05 was a Monday), so buckets
