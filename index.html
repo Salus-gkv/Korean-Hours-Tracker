@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Korean Hours</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Korean Hours">
+<meta name="theme-color" content="#4B6358">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1F2A24;
+    --paper: #F6F4EF;
+    --line: #D8D2C4;
+    --accent: #4B6358;
+    --accent-dark: #37493F;
+    --gold: #E7B45A;
+    --clay: #B5654A;
+    --muted: #7C7566;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 28px 24px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { margin-top: 4px; font-size: 14px; color: var(--muted); }
+  nav { display: flex; border-bottom: 1px solid var(--line); }
+  nav button {
+    flex: 1;
+    padding: 14px 0;
+    background: none;
+    border: none;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  nav button.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
+  main { flex: 1; padding: 24px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ---- Log screen ---- */
+  .log-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .quick-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .quick-row button {
+    flex: 1;
+    min-height: 44px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--accent-dark);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .quick-row button:active { background: var(--line); }
+  .hours-input-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    border-bottom: 2px solid var(--line);
+    padding-bottom: 8px;
+  }
+  .hours-input-row input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 44px;
+    font-weight: 600;
+    color: var(--ink);
+    background: transparent;
+    width: 100%;
+    font-family: inherit;
+    -moz-appearance: textfield;
+  }
+  .hours-input-row input::-webkit-outer-spin-button,
+  .hours-input-row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .hours-input-row .unit { font-size: 18px; color: var(--muted); }
+  .type-row { display: flex; gap: 8px; }
+  .type-row button {
+    flex: 1;
+    min-height: 44px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .type-row button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 500;
+  }
+  .field input[type="date"] {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 0;
+    border: none;
+    border-bottom: 2px solid var(--line);
+    font-size: 17px;
+    background: transparent;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  .field input[type="text"] {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 0;
+    border: none;
+    border-bottom: 2px solid var(--line);
+    font-size: 15px;
+    background: transparent;
+    color: var(--ink);
+    font-family: inherit;
+  }
+  .field input:focus { outline: none; }
+  .save-btn {
+    width: 100%;
+    min-height: 52px;
+    padding: 16px;
+    margin-top: 4px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .save-btn:active { background: var(--accent-dark); }
+  .save-btn:disabled { background: var(--line); color: var(--muted); }
+  .confirm {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--accent-dark);
+    min-height: 18px;
+  }
+  .confirm.err { color: var(--clay); }
+  .today-total {
+    margin-top: 20px;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .status-banner {
+    text-align: center;
+    font-size: 12px;
+    color: var(--clay);
+    padding: 6px 0;
+  }
+
+  /* ---- Trends screen ---- */
+  .filters { display: flex; gap: 8px; margin-bottom: 18px; }
+  .filters button {
+    flex: 1;
+    min-height: 44px;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .filters button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chart-wrap {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 12px;
+    height: 280px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .stat {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat .num { font-size: 20px; font-weight: 600; }
+  .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .breakdown { margin-top: 20px; }
+  .breakdown h3, .entries-list h3 {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+    margin: 0 0 10px;
+  }
+  .bd-row { margin-bottom: 10px; font-size: 13px; }
+  .bd-head { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .bd-head .v { color: var(--muted); }
+  .bd-track { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .bd-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 14px; }
+  .entries-list { margin-top: 24px; }
+  .entry-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+  }
+  .entry-row .d { color: var(--muted); }
+  .entry-row .n { color: var(--muted); font-size: 12px; display: block; margin-top: 2px; }
+  .entry-row .h { font-weight: 600; white-space: nowrap; }
+  .tag {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 7px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--muted);
+    vertical-align: 1px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Korean Hours</h1>
+    <div class="sub">Study log</div>
+  </header>
+
+  <nav>
+    <button id="tab-log" class="active">Log</button>
+    <button id="tab-trends">Trends</button>
+  </nav>
+
+  <main>
+    <section id="screen-log" class="screen active">
+      <div class="log-card">
+        <div class="field">
+          <label for="hoursInput">Hours</label>
+          <div class="quick-row">
+            <button type="button" class="quickBtn" data-h="0.5">0.5</button>
+            <button type="button" class="quickBtn" data-h="1">1</button>
+            <button type="button" class="quickBtn" data-h="1.5">1.5</button>
+            <button type="button" class="quickBtn" data-h="2">2</button>
+          </div>
+          <div class="hours-input-row">
+            <input type="number" id="hoursInput" inputmode="decimal" step="0.25" min="0" max="24" placeholder="0" autofocus>
+            <span class="unit">hrs</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <div class="type-row" id="typeRow"></div>
+        </div>
+        <div class="field">
+          <label for="dateInput">Date</label>
+          <input type="date" id="dateInput">
+        </div>
+        <div class="field">
+          <label for="noteInput">Note (optional)</label>
+          <input type="text" id="noteInput" placeholder="e.g. TTMIK ch. 4">
+        </div>
+        <button class="save-btn" id="saveBtn">Save session</button>
+        <div class="confirm" id="confirmMsg"></div>
+      </div>
+      <div class="today-total" id="todayTotal"></div>
+    </section>
+
+    <section id="screen-trends" class="screen">
+      <div class="filters">
+        <button data-period="day" class="periodBtn active">Day</button>
+        <button data-period="week" class="periodBtn">Week</button>
+        <button data-period="fort" class="periodBtn">2 Weeks</button>
+        <button data-period="month" class="periodBtn">Month</button>
+      </div>
+      <div class="chart-wrap" id="chartWrap"><canvas id="chart"></canvas></div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="breakdown" id="breakdown"></div>
+      <div class="entries-list" id="entriesList"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+// Paste the Apps Script /exec URL here after deploying (build step 3).
+const SHEET_URL = 'PASTE_EXEC_URL_HERE';
+
+const TYPES = ['Speaking', 'Vocab', 'Studying'];
+const MS_DAY = 86400000;
+// 1970-01-05 was a Monday; epoch day 0 is 1970-01-01, so Mondays are day 4 + 7n.
+const MONDAY_OFFSET = 4;
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let entries = [];
+let chartInstance = null;
+let currentPeriod = 'day';
+let selectedType = localStorage.getItem('khType') || 'Studying';
+if (!TYPES.includes(selectedType)) selectedType = 'Studying';
+
+/* ---------- dates (always local; never toISOString on a raw Date) ---------- */
+
+function todayStr() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+// Whole-day number for an ISO date, DST-safe (compared as UTC midnights).
+function dayNumFromISO(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return Math.floor(Date.UTC(y, m - 1, d) / MS_DAY);
+}
+
+function isoFromDayNum(n) {
+  const d = new Date(n * MS_DAY);
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${m}-${day}`;
+}
+
+function fmtDate(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${Number(m)}/${Number(d)}/${y.slice(2)}`;
+}
+
+function mdLabel(dayNum) {
+  const d = new Date(dayNum * MS_DAY);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+}
+
+function fmtHours(h) {
+  return String(Math.round(h * 100) / 100);
+}
+
+/* ---------- data ---------- */
+
+async function loadEntries() {
+  if (SHEET_URL.startsWith('PASTE_')) {
+    showStatus('Backend URL not set yet — edit SHEET_URL in index.html.');
+    entries = [];
+    return;
+  }
+  try {
+    const res = await fetch(SHEET_URL);
+    const data = await res.json();
+    entries = Array.isArray(data) ? data : [];
+  } catch (e) {
+    entries = [];
+    showStatus('Could not load data. Check your connection.');
+  }
+  sortEntries();
+}
+
+function sortEntries() {
+  entries.sort((a, b) => a.date.localeCompare(b.date) || String(a.logged || '').localeCompare(String(b.logged || '')));
+}
+
+async function postEntry(entry) {
+  // text/plain avoids a CORS preflight that Apps Script doesn't answer. Do not "fix" to application/json.
+  const res = await fetch(SHEET_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(entry)
+  });
+  const out = await res.json().catch(() => ({ ok: true }));
+  if (out && out.ok === false) throw new Error(out.error || 'rejected');
+}
+
+function showStatus(msg) {
+  let el = document.getElementById('statusBanner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'statusBanner';
+    el.className = 'status-banner';
+    document.querySelector('main').prepend(el);
+  }
+  el.textContent = msg;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ---------- Log screen ---------- */
+
+const hoursInput = document.getElementById('hoursInput');
+const dateInput = document.getElementById('dateInput');
+const noteInput = document.getElementById('noteInput');
+const saveBtn = document.getElementById('saveBtn');
+const confirmMsg = document.getElementById('confirmMsg');
+const todayTotalEl = document.getElementById('todayTotal');
+
+dateInput.value = todayStr();
+
+function renderTypeRow() {
+  document.getElementById('typeRow').innerHTML = TYPES.map(t =>
+    `<button type="button" class="typeBtn${t === selectedType ? ' active' : ''}" data-type="${t}">${t}</button>`
+  ).join('');
+  document.querySelectorAll('.typeBtn').forEach(b => {
+    b.addEventListener('click', () => {
+      selectedType = b.dataset.type;
+      localStorage.setItem('khType', selectedType);
+      renderTypeRow();
+    });
+  });
+}
+renderTypeRow();
+
+document.querySelectorAll('.quickBtn').forEach(b => {
+  b.addEventListener('click', () => { hoursInput.value = b.dataset.h; });
+});
+
+function renderTodayTotal() {
+  const today = todayStr();
+  const mine = entries.filter(e => e.date === today);
+  if (mine.length === 0) {
+    todayTotalEl.textContent = 'Nothing logged today yet';
+    return;
+  }
+  const total = mine.reduce((s, e) => s + e.hours, 0);
+  todayTotalEl.textContent = `Today: ${fmtHours(total)} hrs across ${mine.length} session${mine.length === 1 ? '' : 's'}`;
+}
+
+let confirmTimer = null;
+function setConfirm(msg, isErr) {
+  confirmMsg.textContent = msg;
+  confirmMsg.classList.toggle('err', !!isErr);
+  clearTimeout(confirmTimer);
+  if (msg) confirmTimer = setTimeout(() => { confirmMsg.textContent = ''; confirmMsg.classList.remove('err'); }, 2500);
+}
+
+saveBtn.addEventListener('click', async () => {
+  const hours = parseFloat(hoursInput.value);
+  const date = dateInput.value;
+  const note = noteInput.value.trim();
+  if (!isFinite(hours) || hours <= 0 || hours > 24 || !date) {
+    setConfirm('Enter the hours you studied.', true);
+    return;
+  }
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving...';
+  confirmMsg.classList.remove('err');
+  confirmMsg.textContent = '';
+  clearTimeout(confirmTimer);
+  try {
+    const entry = { date, hours, note, type: selectedType };
+    await postEntry(entry);
+    entries.push({ ...entry, logged: new Date().toISOString() });
+    sortEntries();
+    setConfirm('Saved.', false);
+    hoursInput.value = '';
+    noteInput.value = '';
+    renderTodayTotal();
+    renderTrends();
+  } catch (e) {
+    // Leave the typed hours in place so nothing is lost.
+    setConfirm('Could not save. Check your connection and try again.', true);
+  }
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save session';
+});
+
+/* ---------- nav ---------- */
+
+document.getElementById('tab-log').addEventListener('click', () => switchTab('log'));
+document.getElementById('tab-trends').addEventListener('click', () => switchTab('trends'));
+
+function switchTab(tab) {
+  document.getElementById('tab-log').classList.toggle('active', tab === 'log');
+  document.getElementById('tab-trends').classList.toggle('active', tab === 'trends');
+  document.getElementById('screen-log').classList.toggle('active', tab === 'log');
+  document.getElementById('screen-trends').classList.toggle('active', tab === 'trends');
+  if (tab === 'trends') renderTrends();
+}
+
+/* ---------- Trends screen ---------- */
+
+document.querySelectorAll('.periodBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.periodBtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    renderTrends();
+  });
+});
+
+// Which bucket an entry falls in, for the current period.
+function bucketKey(period, iso) {
+  if (period === 'month') {
+    const [y, m] = iso.split('-').map(Number);
+    return 'm' + (y * 12 + (m - 1));
+  }
+  const n = dayNumFromISO(iso);
+  if (period === 'day') return 'd' + n;
+  const span = period === 'week' ? 7 : 14;
+  return period + Math.floor((n - MONDAY_OFFSET) / span);
+}
+
+// The buckets to draw, oldest first. Each has a key, a label, and a start day.
+function buildBuckets(period) {
+  const out = [];
+  if (period === 'day') {
+    const today = dayNumFromISO(todayStr());
+    for (let i = 29; i >= 0; i--) {
+      const n = today - i;
+      out.push({ key: 'd' + n, label: mdLabel(n), startDay: n });
+    }
+    return out;
+  }
+  if (period === 'week' || period === 'fort') {
+    const span = period === 'week' ? 7 : 14;
+    const cur = Math.floor((dayNumFromISO(todayStr()) - MONDAY_OFFSET) / span);
+    for (let i = 11; i >= 0; i--) {
+      const idx = cur - i;
+      const start = idx * span + MONDAY_OFFSET;
+      out.push({ key: period + idx, label: mdLabel(start), startDay: start });
+    }
+    return out;
+  }
+  const now = new Date();
+  const cur = now.getFullYear() * 12 + now.getMonth();
+  for (let i = 11; i >= 0; i--) {
+    const idx = cur - i;
+    const y = Math.floor(idx / 12), m = idx % 12;
+    out.push({
+      key: 'm' + idx,
+      label: m === 0 ? `${MONTH_NAMES[m]} '${String(y).slice(2)}` : MONTH_NAMES[m],
+      startDay: dayNumFromISO(`${y}-${String(m + 1).padStart(2, '0')}-01`)
+    });
+  }
+  return out;
+}
+
+// 3-bucket simple moving average; partial at the start so the line is continuous.
+function movingAverage(values, window) {
+  return values.map((_, i) => {
+    const from = Math.max(0, i - window + 1);
+    const slice = values.slice(from, i + 1);
+    return Math.round((slice.reduce((s, v) => s + v, 0) / slice.length) * 100) / 100;
+  });
+}
+
+function currentStreak() {
+  const days = new Set(entries.map(e => e.date));
+  let n = dayNumFromISO(todayStr());
+  // Today not logged yet shouldn't drop a streak that's alive through yesterday.
+  if (!days.has(isoFromDayNum(n))) n -= 1;
+  let streak = 0;
+  while (days.has(isoFromDayNum(n))) { streak++; n--; }
+  return streak;
+}
+
+function renderTrends() {
+  const chartWrap = document.getElementById('chartWrap');
+  const statsGrid = document.getElementById('statsGrid');
+  const breakdownEl = document.getElementById('breakdown');
+  const entriesListEl = document.getElementById('entriesList');
+
+  if (entries.length === 0) {
+    chartWrap.innerHTML = '<div class="empty">No sessions yet. Log one to see your trend.</div>';
+    statsGrid.innerHTML = '';
+    breakdownEl.innerHTML = '';
+    entriesListEl.innerHTML = '';
+    return;
+  }
+  if (!document.getElementById('chart')) {
+    chartWrap.innerHTML = '<canvas id="chart"></canvas>';
+  }
+
+  // Sum sessions into daily, then bucket, totals.
+  const sums = new Map();
+  for (const e of entries) {
+    const k = bucketKey(currentPeriod, e.date);
+    sums.set(k, (sums.get(k) || 0) + e.hours);
+  }
+
+  const buckets = buildBuckets(currentPeriod);
+  const labels = buckets.map(b => b.label);
+  const values = buckets.map(b => Math.round((sums.get(b.key) || 0) * 100) / 100);
+  const trend = movingAverage(values, 3);
+
+  const ctx = document.getElementById('chart').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          data: values,
+          backgroundColor: '#4B6358',
+          borderRadius: 3,
+          categoryPercentage: 0.88,
+          barPercentage: 0.9,
+          order: 2
+        },
+        {
+          type: 'line',
+          data: trend,
+          borderColor: '#E7B45A',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: c => c.datasetIndex === 0 ? `${fmtHours(c.parsed.y)} hrs` : `trend ${fmtHours(c.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#7C7566',
+            font: { size: 10 },
+            maxRotation: 0,
+            autoSkipPadding: 8
+          },
+          grid: { display: false }
+        },
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'hours', color: '#7C7566', font: { size: 11 } },
+          ticks: { color: '#7C7566', font: { size: 11 }, precision: 1 },
+          grid: { color: '#D8D2C4' }
+        }
+      }
+    }
+  });
+
+  // ---- stats, for the visible window ----
+  const total = values.reduce((s, v) => s + v, 0);
+  const avg = total / buckets.length;
+  const perLabel = { day: 'Avg / day', week: 'Avg / week', fort: 'Avg / 2 wks', month: 'Avg / month' }[currentPeriod];
+  const allTime = entries.reduce((s, e) => s + e.hours, 0);
+  const streak = currentStreak();
+  statsGrid.innerHTML = `
+    <div class="stat"><div class="num">${fmtHours(Math.round(total * 10) / 10)}</div><div class="lbl">Total (shown)</div></div>
+    <div class="stat"><div class="num">${fmtHours(Math.round(avg * 10) / 10)}</div><div class="lbl">${perLabel}</div></div>
+    <div class="stat"><div class="num">${streak}</div><div class="lbl">Day streak</div></div>
+    <div class="stat"><div class="num">${fmtHours(Math.round(allTime * 10) / 10)}</div><div class="lbl">Hours all time</div></div>
+  `;
+
+  // ---- hours by type, for the visible window ----
+  const windowStart = buckets[0].startDay;
+  const inWindow = entries.filter(e => dayNumFromISO(e.date) >= windowStart);
+  const byType = new Map();
+  for (const e of inWindow) {
+    const t = TYPES.includes(e.type) ? e.type : 'Other';
+    byType.set(t, (byType.get(t) || 0) + e.hours);
+  }
+  const windowTotal = inWindow.reduce((s, e) => s + e.hours, 0);
+  const rows = [...TYPES, 'Other'].filter(t => byType.get(t));
+  breakdownEl.innerHTML = rows.length === 0 ? '' : '<h3>By type</h3>' + rows.map(t => {
+    const h = byType.get(t);
+    const pct = windowTotal ? Math.round((h / windowTotal) * 100) : 0;
+    return `<div class="bd-row">
+        <div class="bd-head"><span>${escapeHtml(t)}</span><span class="v">${fmtHours(Math.round(h * 10) / 10)} hrs · ${pct}%</span></div>
+        <div class="bd-track"><div class="bd-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  }).join('');
+
+  // ---- recent sessions: newest first, same-day entries ordered by Logged ----
+  const recent = [...entries].reverse().slice(0, 10);
+  entriesListEl.innerHTML = '<h3>Recent sessions</h3>' + recent.map(e =>
+    `<div class="entry-row">
+       <span class="d">${fmtDate(e.date)}${e.type ? `<span class="tag">${escapeHtml(e.type)}</span>` : ''}${e.note ? `<span class="n">${escapeHtml(e.note)}</span>` : ''}</span>
+       <span class="h">${fmtHours(e.hours)} hrs</span>
+     </div>`
+  ).join('');
+}
+
+/* ---------- init ---------- */
+
+(async () => {
+  renderTodayTotal();
+  await loadEntries();
+  renderTodayTotal();
+  renderTrends();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+# Korean Hours (Korean-Hours-Tracker)
+
+Single-page app for logging Korean study sessions (decimal hours + type + date + optional note),
+with a Trends screen that buckets hours by day/week/fortnight/month.
+Static site on GitHub Pages, no login, one user (Grace).
+Meant to be "Added to Home Screen" on iOS for a ~2-tap logging flow.
+
+- Live: https://salus-gkv.github.io/Korean-Hours-Tracker/
+- Repo: github.com/Salus-gkv/Korean-Hours-Tracker. Pages serves from the root of `main`,
+  no build step and no CI. Pushing to `main` redeploys.
+- Sibling app, same architecture and palette: R-Weight-Tracker (~/Documents/Claude/R-Weight-Tracker).
+
+## Files (repo root)
+- `index.html`: the whole app (HTML/CSS/JS, no framework). Chart.js 4.4.1 from cdnjs, the only dependency.
+- `manifest.json`: PWA manifest.
+- `favicon-32.png`, `apple-touch-icon.png` (180), `icon-192.png`, `icon-512.png`: 한 glyph on the accent-green tile.
+- `icon-source.svg`: the source the PNGs were rendered from. To regenerate:
+  `qlmanage -t -s 512 -o . icon-source.svg` then `sips -z <n> <n> ... --out <file>`.
+- `apps-script.gs`: a copy of the backend code, kept here for reference. The live copy lives in
+  Grace's Google account and is NOT deployed from this repo.
+
+## Data backend: Google Sheet via Apps Script
+- Sheet tab `Log`, columns: A Date | B Hours | C Note | D Logged | E Type.
+- `const SHEET_URL` at the top of index.html points at the Apps Script web app `/exec` URL.
+  - `doGet` returns `[{date, hours, note, logged, type}, ...]`
+  - `doPost` takes `{date, hours, note, type}` and ALWAYS appends a row.
+- Every save appends. Four sessions in one day are four rows; the Trends screen sums them per day.
+  This is the deliberate difference from the Weight Log, where a second save for a date overwrites.
+- POSTs from the browser MUST use `Content-Type: text/plain;charset=utf-8`. Any other content type
+  triggers a CORS preflight Apps Script does not answer, and the save fails silently.
+  Do not "fix" this to `application/json`.
+- Only Grace can edit or redeploy the Apps Script (Deploy → Manage deployments → Edit → New version).
+  Claude Code cannot. Editing the script alone does not change what the live URL serves.
+
+## Date handling
+All dates are built from LOCAL calendar parts. Never call `toISOString()` on a raw `new Date()` to get
+a date string — it rolls over at 5 or 7pm Pacific and files evening study under tomorrow.
+`dayNumFromISO` compares whole days as UTC midnights, which keeps bucketing DST-safe.
+The Weight Log still has the rollover bug; do not copy its `todayStr`.
+
+## Trends bucketing
+- Day = last 30 days, Week = last 12 weeks, 2 Weeks = last 12 fortnights, Month = last 12 calendar months.
+- Weeks and fortnights start Monday, anchored on epoch day 4 (1970-01-05 was a Monday), so buckets
+  stay stable regardless of when the app is opened.
+- Trend line is a 3-bucket simple moving average, partial at the start so the line is continuous.
+- Empty buckets render as zero-height bars, not gaps. Seeing the zeros is the point.
+- Streak counts consecutive days with at least one entry. If today has nothing logged yet it counts
+  back from yesterday, so an alive streak isn't shown as broken before the day's session happens.
+
+## Design tokens (shared with the Weight Log; keep them in sync)
+`--ink #1F2A24`, `--paper #F6F4EF`, `--line #D8D2C4`, `--accent #4B6358`, `--accent-dark #37493F`,
+`--gold #E7B45A` (trend line, icon bar), `--clay #B5654A` (errors only), `--muted #7C7566`.
+System font stack, content capped at 480px, cards white with 1px `--line` and 14px radius,
+tap targets at least 44px.
+
+## Deliberate choices, don't "fix" without asking
+- No login. Anyone with the link can read and write; the link isn't published anywhere.
+  Fine for study hours, would not be for health data.
+- Every load fetches live from Apps Script, so a cold open takes a second or two on mobile.
+  Logging does not wait for the fetch, so only Trends feels it.
+- Hours are decimals (1.5), not `1h 30m`. One number per entry, easy to sum.
+- Study type defaults to the last one used (localStorage `khType`), so the usual case is still
+  zero extra taps while the column stays populated.
+- No weekly goal line and no `% of goal` card. Considered and skipped; add only if asked.
+
+## Known limitation
+`autofocus` on the hours field does not reliably raise the iOS keyboard without a user gesture.
+That's a WebKit rule, not a bug here. Logging is still two taps.
+
+## Can't be a claude.ai Artifact
+Artifact CSP blocks fetch to script.google.com, same as the Weight Log.
