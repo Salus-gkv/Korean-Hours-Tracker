@@ -43,6 +43,15 @@ a date string — it rolls over at 5 or 7pm Pacific and files evening study unde
 `dayNumFromISO` compares whole days as UTC midnights, which keeps bucketing DST-safe.
 The Weight Log still has the rollover bug; do not copy its `todayStr`.
 
+## The date bug that will come back if asDateString is "simplified"
+`doGet` must duck-type the date cell with `typeof v.getTime === 'function'`, NOT `v instanceof Date`.
+Apps Script's V8 runtime does not reliably report sheet date values as `instanceof Date`; when that
+check fails the fallback `String(v).slice(0, 10)` runs on `Sat Oct 31 2026 00:00:00 GMT-0700` and
+keeps `Sat Oct 31` — the YEAR IS GONE. The client then buckets the row nowhere, the chart shows
+nothing, and the session list renders `NaN/NaN/`. Caught on the first live write, 2026-10-31.
+`loadEntries` now drops non-`YYYY-MM-DD` rows and shows a banner saying how many, so if this ever
+recurs it is loud rather than silent. The banner is the symptom; the script is the cause.
+
 ## Trends bucketing
 - Day = last 30 days, Week = last 12 weeks, 2 Weeks = last 12 fortnights, Month = last 12 calendar months.
 - Weeks and fortnights start Monday, anchored on epoch day 4 (1970-01-05 was a Monday), so buckets

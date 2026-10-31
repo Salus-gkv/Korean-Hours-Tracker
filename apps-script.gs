@@ -42,7 +42,12 @@ function doPost(e) {
 }
 
 function asDateString(v) {
-  if (v instanceof Date) {
+  // Sheets stores the date cell as a real Date, but Apps Script's V8 runtime does
+  // not reliably report those values as `instanceof Date`. When that check failed,
+  // the fallback ran on "Sat Oct 31 2026 ..." and sliced off the YEAR, so every row
+  // came back as "Sat Oct 31" and the client dropped it from every chart bucket.
+  // Duck-type instead; it holds whichever way the runtime reports the value.
+  if (v && typeof v.getTime === 'function') {
     return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
   return String(v).slice(0, 10);

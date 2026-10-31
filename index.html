@@ -397,7 +397,15 @@ async function loadEntries() {
   try {
     const res = await fetch(SHEET_URL);
     const data = await res.json();
-    entries = Array.isArray(data) ? data : [];
+    const rows = Array.isArray(data) ? data : [];
+    // A row whose date isn't a plain YYYY-MM-DD would land in no bucket at all and
+    // render as NaN/NaN in the session list, so drop it and SAY SO. Silently losing
+    // study time to a backend format change is the worst failure this app can have.
+    entries = rows.filter(r => /^\d{4}-\d{2}-\d{2}$/.test(String(r && r.date)));
+    const skipped = rows.length - entries.length;
+    if (skipped > 0) {
+      showStatus(`${skipped} row${skipped === 1 ? '' : 's'} had an unreadable date and ${skipped === 1 ? 'was' : 'were'} skipped. Redeploy the Apps Script (see CLAUDE.md).`);
+    }
   } catch (e) {
     entries = [];
     showStatus('Could not load data. Check your connection.');
