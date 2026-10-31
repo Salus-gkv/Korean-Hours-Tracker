@@ -318,8 +318,25 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 let entries = [];
 let chartInstance = null;
 let currentPeriod = 'day';
-let selectedType = localStorage.getItem('khType') || 'Studying';
-if (!TYPES.includes(selectedType)) selectedType = 'Studying';
+let selectedTypes = loadSelectedTypes();
+
+function loadSelectedTypes() {
+  let raw = localStorage.getItem('khTypes');
+  if (!raw) {
+    const legacy = localStorage.getItem('khType'); // single-select builds
+    raw = legacy ? JSON.stringify([legacy]) : null;
+  }
+  let list = [];
+  try { list = raw ? JSON.parse(raw) : []; } catch (e) { list = []; }
+  list = Array.isArray(list) ? list.filter(t => TYPES.includes(t)) : [];
+  return list.length ? list : ['Studying'];
+}
+
+// Types are stored comma-joined in one row, e.g. 'Vocab, Speaking'.
+function parseTypes(raw) {
+  if (!raw) return [];
+  return [...new Set(String(raw).split(',').map(t => t.trim()).filter(Boolean))];
+}
 
 /* ---------- dates (always local; never toISOString on a raw Date) ---------- */
 
@@ -361,7 +378,12 @@ function fmtHours(h) {
 // read as "40 min" rather than "0.67 hrs". Charts and stats stay in hours.
 function fmtDuration(h) {
   const mins = Math.round(h * 60);
-  return mins < 60 ? `${mins} min` : `${fmtHours(h)} hrs`;
+  return mins < 60 ? `${mins} min` : withUnit(h);
+}
+
+function withUnit(h) {
+  const r = Math.round(h * 100) / 100;
+  return `${r} ${r === 1 ? 'hr' : 'hrs'}`;
 }
 
 /* ---------- data ---------- */
@@ -428,12 +450,19 @@ dateInput.value = todayStr();
 
 function renderTypeRow() {
   document.getElementById('typeRow').innerHTML = TYPES.map(t =>
-    `<button type="button" class="typeBtn${t === selectedType ? ' active' : ''}" data-type="${t}">${t}</button>`
+    `<button type="button" class="typeBtn${selectedTypes.includes(t) ? ' active' : ''}" data-type="${t}" aria-pressed="${selectedTypes.includes(t)}">${t}</button>`
   ).join('');
   document.querySelectorAll('.typeBtn').forEach(b => {
     b.addEventListener('click', () => {
-      selectedType = b.dataset.type;
-      localStorage.setItem('khType', selectedType);
+      const t = b.dataset.type;
+      if (selectedTypes.includes(t)) {
+        // Never leave the session untyped; the last active chip stays put.
+        if (selectedTypes.length === 1) return;
+        selectedTypes = selectedTypes.filter(x => x !== t);
+      } else {
+        selectedTypes = TYPES.filter(x => selectedTypes.includes(x) || x === t);
+      }
+      localStorage.setItem('khTypes', JSON.stringify(selectedTypes));
       renderTypeRow();
     });
   });
@@ -474,7 +503,7 @@ saveBtn.addEventListener('click', async () => {
   confirmMsg.textContent = '';
   clearTimeout(confirmTimer);
   try {
-    const entry = { date, hours, note, type: selectedType };
+    const entry = { date, hours, note, type: selectedTypes.join(', ') };
     await postEntry(entry);
     entries.push({ ...entry, logged: new Date().toISOString() });
     sortEntries();
@@ -645,7 +674,7 @@ function renderTrends() {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: c => c.datasetIndex === 0 ? `${fmtHours(c.parsed.y)} hrs` : `trend ${fmtHours(c.parsed.y)}`
+            label: c => c.datasetIndex === 0 ? withUnit(c.parsed.y) : `trend ${fmtHours(c.parsed.y)}`
           }
         }
       },
@@ -687,8 +716,13 @@ function renderTrends() {
   const inWindow = entries.filter(e => dayNumFromISO(e.date) >= windowStart);
   const byType = new Map();
   for (const e of inWindow) {
-    const t = TYPES.includes(e.type) ? e.type : 'Other';
-    byType.set(t, (byType.get(t) || 0) + e.hours);
+    const list = parseTypes(e.type);
+    const labels = list.length ? list.map(t => TYPES.includes(t) ? t : 'Other') : ['Other'];
+    const share = e.hours / labels.length;
+    for (const t of new Set(labels)) {
+      const n = labels.filter(x => x === t).length;
+      byType.set(t, (byType.get(t) || 0) + share * n);
+    }
   }
   const windowTotal = inWindow.reduce((s, e) => s + e.hours, 0);
   const rows = [...TYPES, 'Other'].filter(t => byType.get(t));
@@ -696,7 +730,7 @@ function renderTrends() {
     const h = byType.get(t);
     const pct = windowTotal ? Math.round((h / windowTotal) * 100) : 0;
     return `<div class="bd-row">
-        <div class="bd-head"><span>${escapeHtml(t)}</span><span class="v">${fmtHours(Math.round(h * 10) / 10)} hrs · ${pct}%</span></div>
+        <div class="bd-head"><span>${escapeHtml(t)}</span><span class="v">${withUnit(Math.round(h * 10) / 10)} · ${pct}%</span></div>
         <div class="bd-track"><div class="bd-fill" style="width:${pct}%"></div></div>
       </div>`;
   }).join('');
@@ -705,7 +739,7 @@ function renderTrends() {
   const recent = [...entries].reverse().slice(0, 10);
   entriesListEl.innerHTML = '<h3>Recent sessions</h3>' + recent.map(e =>
     `<div class="entry-row">
-       <span class="d">${fmtDate(e.date)}${e.type ? `<span class="tag">${escapeHtml(e.type)}</span>` : ''}${e.note ? `<span class="n">${escapeHtml(e.note)}</span>` : ''}</span>
+       <span class="d">${fmtDate(e.date)}${parseTypes(e.type).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}${e.note ? `<span class="n">${escapeHtml(e.note)}</span>` : ''}</span>
        <span class="h">${fmtDuration(e.hours)}</span>
      </div>`
   ).join('');

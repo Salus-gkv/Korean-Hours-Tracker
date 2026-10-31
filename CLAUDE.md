@@ -21,6 +21,8 @@ Meant to be "Added to Home Screen" on iOS for a ~2-tap logging flow.
 
 ## Data backend: Google Sheet via Apps Script
 - Sheet tab `Log`, columns: A Date | B Hours | C Note | D Logged | E Type.
+- Column E holds ONE OR MORE types, comma-joined in TYPES order, e.g. `Vocab, Speaking`.
+  A session is always one row; it is never split into a row per type.
 - `const SHEET_URL` at the top of index.html points at the Apps Script web app `/exec` URL.
   - `doGet` returns `[{date, hours, note, logged, type}, ...]`
   - `doPost` takes `{date, hours, note, type}` and ALWAYS appends a row.
@@ -67,6 +69,14 @@ tap targets at least 44px.
   always hours, so the axis stays comparable across buckets.
 - No quick-add hour chips. They were in the original spec and were cut; minutes are typed directly.
 - Type chip order is Vocab, Studying, Speaking, and the default when nothing is stored is Studying.
+- Type chips are MULTI-select. Picking several means the session counted toward all of them, and the
+  by-type breakdown divides that session's hours equally between them (60 min on Vocab + Speaking is
+  30 min each). The chart bars, the Total card and the Recent sessions row all still show the whole
+  session, so the breakdown sums to the window total rather than double-counting.
+- At least one chip is always lit. Clicking the only active chip is a deliberate no-op, which keeps
+  an untyped session off the save path without adding an error the two-tap flow would have to clear.
+- Selection persists in localStorage `khTypes` (a JSON array). The older single-select key `khType`
+  is read once and migrated; it can be deleted from this file once Grace's phone has loaded the app.
 - Study type defaults to the last one used (localStorage `khType`), so the usual case is still
   zero extra taps while the column stays populated.
 - No weekly goal line and no `% of goal` card. Considered and skipped; add only if asked.
