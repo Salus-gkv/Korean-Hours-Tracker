@@ -70,14 +70,18 @@ Trends tab is opened. Keep the optimistic local append — it is what makes logg
 but never make it the only writer of `entries`.
 
 ## Stat cards
-Four cards describe the VISIBLE WINDOW, and a fifth wide one is all time. The window cards name
-their span ("Total, last 30 days") because with a short history the two totals are identical and
-read as a duplicated number otherwise. That ambiguity is what prompted the rewrite.
-- Avg / day = window total / days in the window, not per bucket.
-- Avg / week and Weeks met both read from `weeklyTotals()`, one list of Mon-Sun weeks clipped to
-  the window, so they can never disagree about what a week is. The oldest and current weeks may be
-  partial, and an in-progress week counts as unmet until it clears the bar.
-- `WEEKLY_GOAL_HOURS` (10) is the threshold; a week counts when it is >= that, so exactly 10 meets.
+A 2x2. The TOP row follows the selected period, the BOTTOM row is all time, and that split is the
+whole layout — don't reorder them.
+- Total, last N <period> | Avg / <period>
+- Hours all time | Weeks hitting 10 hrs
+- The top-left card names its window because with a short history it shows the same number as
+  all-time directly beneath it, which reads as a bug. Keep the label dynamic.
+- Avg is window total / bucket count, so it means "per day" on Day and "per month" on Month. Grace
+  asked for it this way specifically after trying a fixed per-day/per-week pair.
+- `weeksGoalMet()` is a LIFETIME running count with no denominator: every Mon-Sun week that ever
+  reached `WEEKLY_GOAL_HOURS` (10), including weeks far outside the selected window. It only goes
+  up. A week counts at >= the goal, so exactly 10 qualifies, and the current week counts the moment
+  it clears. Empty weeks can't qualify, so grouping the entries is enough.
 - There is no day-streak card. Grace removed it on 2026-10-31; `isoFromDayNum` went with it.
 
 ## Trends bucketing
