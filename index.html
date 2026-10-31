@@ -397,6 +397,7 @@ async function loadEntries() {
   try {
     const res = await fetch(SHEET_URL);
     const data = await res.json();
+    clearStatus();
     const rows = Array.isArray(data) ? data : [];
     // A row whose date isn't a plain YYYY-MM-DD would land in no bucket at all and
     // render as NaN/NaN in the session list, so drop it and SAY SO. Silently losing
@@ -426,6 +427,11 @@ async function postEntry(entry) {
   });
   const out = await res.json().catch(() => ({ ok: true }));
   if (out && out.ok === false) throw new Error(out.error || 'rejected');
+}
+
+function clearStatus() {
+  const el = document.getElementById('statusBanner');
+  if (el) el.remove();
 }
 
 function showStatus(msg) {
@@ -538,7 +544,10 @@ function switchTab(tab) {
   document.getElementById('tab-trends').classList.toggle('active', tab === 'trends');
   document.getElementById('screen-log').classList.toggle('active', tab === 'log');
   document.getElementById('screen-trends').classList.toggle('active', tab === 'trends');
-  if (tab === 'trends') renderTrends();
+  if (tab === 'trends') {
+    renderTrends();      // instant, from what's already loaded
+    refreshEntries();    // then reconcile against the sheet
+  }
 }
 
 /* ---------- Trends screen ---------- */
@@ -752,6 +761,34 @@ function renderTrends() {
      </div>`
   ).join('');
 }
+
+/* ---------- staying in sync with the sheet ---------- */
+
+// Saving appends to `entries` locally so logging never waits on a round trip, and
+// for a long time that was the ONLY thing that ever changed the list after startup.
+// A row deleted or edited in the sheet therefore lived on in the app indefinitely,
+// because an iOS home-screen app is usually RESUMED rather than reloaded. Any time
+// the app comes back into view, re-read the sheet and let it win.
+let refreshing = false;
+
+async function refreshEntries() {
+  if (refreshing) return;
+  refreshing = true;
+  try {
+    await loadEntries();
+    renderTodayTotal();
+    if (document.getElementById('screen-trends').classList.contains('active')) {
+      renderTrends();
+    }
+  } finally {
+    refreshing = false;
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshEntries();
+});
+window.addEventListener('pageshow', e => { if (e.persisted) refreshEntries(); });
 
 /* ---------- init ---------- */
 
