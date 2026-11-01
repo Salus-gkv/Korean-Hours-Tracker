@@ -131,3 +131,11 @@ That's a WebKit rule, not a bug here. Logging is still two taps.
 
 ## Can't be a claude.ai Artifact
 Artifact CSP blocks fetch to script.google.com, same as the Weight Log.
+
+## The average's denominator
+
+`Avg / <period>` divides the window total by `activeBuckets(buckets)`, not by
+`buckets.length`. Buckets entirely before the first logged entry are not counted,
+because dividing by a flat 30 days made three days of real study read as 0.1
+hrs/day. Once history fills the window the denominator is the full window again,
+and an empty log falls back to the full window rather than dividing by zero.
