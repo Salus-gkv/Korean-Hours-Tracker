@@ -139,3 +139,16 @@ Artifact CSP blocks fetch to script.google.com, same as the Weight Log.
 because dividing by a flat 30 days made three days of real study read as 0.1
 hrs/day. Once history fills the window the denominator is the full window again,
 and an empty log falls back to the full window rather than dividing by zero.
+
+## The Log screen's two resets
+
+Neither the date nor the type chips carry over. The date field holds today and
+re-syncs on resume, on `pageshow`, and on returning to the Log tab, because a
+home-screen app is resumed rather than reloaded — a page opened on Monday would
+otherwise still offer Monday on Friday. A tap on the field sets `dateTouched`,
+which blocks the sync until the next successful save, so a backfill survives an
+app switch and can take a second session on the same date.
+
+The chips start empty, are never written to localStorage, and clear after every
+save: the type is a deliberate choice each time. A save with no chip lit is
+refused with `Pick at least one type.` and posts nothing.

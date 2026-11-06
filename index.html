@@ -319,19 +319,9 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 let entries = [];
 let chartInstance = null;
 let currentPeriod = 'day';
-let selectedTypes = loadSelectedTypes();
-
-function loadSelectedTypes() {
-  let raw = localStorage.getItem('khTypes');
-  if (!raw) {
-    const legacy = localStorage.getItem('khType'); // single-select builds
-    raw = legacy ? JSON.stringify([legacy]) : null;
-  }
-  let list = [];
-  try { list = raw ? JSON.parse(raw) : []; } catch (e) { list = []; }
-  list = Array.isArray(list) ? list.filter(t => TYPES.includes(t)) : [];
-  return list.length ? list : ['Studying'];
-}
+// Starts empty and is never remembered between sessions: the type is a deliberate
+// choice each time, so a stale chip can't ride along on the next save.
+let selectedTypes = [];
 
 // Types are stored comma-joined in one row, e.g. 'Vocab, Speaking'.
 function parseTypes(raw) {
@@ -454,7 +444,16 @@ const saveBtn = document.getElementById('saveBtn');
 const confirmMsg = document.getElementById('confirmMsg');
 const todayTotalEl = document.getElementById('todayTotal');
 
-dateInput.value = todayStr();
+// The date field holds today until it is tapped. A home-screen app is resumed, not
+// reloaded, so without this a page opened on Monday still offers Monday on Friday.
+// An edit is respected while it stands; a successful save ends it, so the field can
+// serve a second session on a backfilled date but rolls forward on the next resume.
+let dateTouched = false;
+dateInput.addEventListener('input', () => { dateTouched = true; });
+function syncDate() {
+  if (!dateTouched) dateInput.value = todayStr();
+}
+syncDate();
 
 function renderTypeRow() {
   document.getElementById('typeRow').innerHTML = TYPES.map(t =>
@@ -464,13 +463,10 @@ function renderTypeRow() {
     b.addEventListener('click', () => {
       const t = b.dataset.type;
       if (selectedTypes.includes(t)) {
-        // Never leave the session untyped; the last active chip stays put.
-        if (selectedTypes.length === 1) return;
         selectedTypes = selectedTypes.filter(x => x !== t);
       } else {
         selectedTypes = TYPES.filter(x => selectedTypes.includes(x) || x === t);
       }
-      localStorage.setItem('khTypes', JSON.stringify(selectedTypes));
       renderTypeRow();
     });
   });
@@ -504,6 +500,10 @@ saveBtn.addEventListener('click', async () => {
     setConfirm('Enter the minutes you studied.', true);
     return;
   }
+  if (selectedTypes.length === 0) {
+    setConfirm('Pick at least one type.', true);
+    return;
+  }
   const hours = Math.round((minutes / 60) * 10000) / 10000;
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving...';
@@ -518,6 +518,9 @@ saveBtn.addEventListener('click', async () => {
     setConfirm('Saved.', false);
     minutesInput.value = '';
     noteInput.value = '';
+    selectedTypes = [];
+    renderTypeRow();
+    dateTouched = false;
     renderTodayTotal();
     renderTrends();
   } catch (e) {
@@ -538,6 +541,7 @@ function switchTab(tab) {
   document.getElementById('tab-trends').classList.toggle('active', tab === 'trends');
   document.getElementById('screen-log').classList.toggle('active', tab === 'log');
   document.getElementById('screen-trends').classList.toggle('active', tab === 'trends');
+  if (tab === 'log') syncDate();
   if (tab === 'trends') {
     renderTrends();      // instant, from what's already loaded
     refreshEntries();    // then reconcile against the sheet
@@ -810,9 +814,9 @@ async function refreshEntries() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') refreshEntries();
+  if (document.visibilityState === 'visible') { syncDate(); refreshEntries(); }
 });
-window.addEventListener('pageshow', e => { if (e.persisted) refreshEntries(); });
+window.addEventListener('pageshow', e => { if (e.persisted) { syncDate(); refreshEntries(); } });
 
 /* ---------- init ---------- */
 
