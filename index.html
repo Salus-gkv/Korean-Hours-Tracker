@@ -623,6 +623,19 @@ function trackingStart() {
 // average is a projection out of a part bucket -- eight days reading as 65.5
 // hrs/month -- so the card shows a dash rather than a number that overstates.
 // The bucket holding today is still in progress and does not count.
+// Days in a row with at least one session, counted back from today. A day with
+// nothing logged yet does not break the run: the count starts at yesterday until
+// today has an entry, so the streak doesn't read zero every morning and then jump
+// back up in the evening.
+function dayStreak() {
+  const days = new Set(entries.map(e => dayNumFromISO(e.date)));
+  const today = dayNumFromISO(todayStr());
+  let cur = days.has(today) ? today : today - 1;
+  let n = 0;
+  while (days.has(cur)) { n++; cur--; }
+  return n;
+}
+
 function hasCompleteBucket(buckets) {
   const first = trackingStart();
   if (first === null) return false;
@@ -763,9 +776,10 @@ function renderTrends() {
   });
 
   // ---- stats ----
-  // Top row follows the selected period, bottom row is all time. The top-left card
-  // names its window ("Total, last 30 days") because with a short history it reads
-  // as the same number as all-time directly beneath it.
+  // Top row follows the selected period, bottom row is all time. On the Day tab the
+  // top-left card is the streak instead of a window total, which there would read as
+  // the same number as all-time directly beneath it. The other periods name their
+  // window ("Total, last 12 weeks") for the same reason.
   const windowLabel = {
     day: 'Total, last 30 days',
     week: 'Total, last 12 weeks',
@@ -788,8 +802,13 @@ function renderTrends() {
   const avgNum = avgReady ? fmtHours(round1(avg)) : '—';
   const avgLbl = avgReady ? avgLabel : `${avgLabel} · after a full ${unitWord}`;
 
+  const streak = dayStreak();
+  const topLeft = currentPeriod === 'day'
+    ? `<div class="stat"><div class="num">${streak}</div><div class="lbl">Day streak</div></div>`
+    : `<div class="stat"><div class="num">${fmtHours(round1(total))}</div><div class="lbl">${windowLabel}</div></div>`;
+
   statsGrid.innerHTML = `
-    <div class="stat"><div class="num">${fmtHours(round1(total))}</div><div class="lbl">${windowLabel}</div></div>
+    ${topLeft}
     <div class="stat"><div class="num">${avgNum}</div><div class="lbl">${avgLbl}</div></div>
     <div class="stat"><div class="num">${fmtHours(round1(allTime))}</div><div class="lbl">Hours all time</div></div>
     <div class="stat"><div class="num">${met}</div><div class="lbl">Weeks hitting ${WEEKLY_GOAL_HOURS} hrs</div></div>

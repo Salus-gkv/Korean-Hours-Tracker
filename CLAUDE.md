@@ -168,3 +168,15 @@ app switch and can take a second session on the same date.
 The chips start empty, are never written to localStorage, and clear after every
 save: the type is a deliberate choice each time. A save with no chip lit is
 refused with `Pick at least one type.` and posts nothing.
+
+## Day streak
+
+The Day tab's top-left card is the streak, not a window total — on that tab a
+30-day total reads as the same number as `Hours all time` directly beneath it. The
+other periods keep their named window total.
+
+`dayStreak` counts back from today over days holding at least one session. A day
+with nothing logged yet does not break the run: the count starts at yesterday until
+today has an entry, so the number doesn't read zero every morning and jump back up
+at night. Two sessions in one day are still one day, and a future-dated row cannot
+extend it.
