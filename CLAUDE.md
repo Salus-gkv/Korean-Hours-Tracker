@@ -196,16 +196,20 @@ The trend line sits in its own `stack` group, which is what keeps Chart.js from
 drawing it on top of the bars instead of at its own value. It is excluded from the
 legend by a filter but still appears in the tooltip.
 
-`TYPE_COLORS` is the one source for every type colour: dark green `#2F4038`,
-light sage `#A3BFAF`, brown `#9A6B42`, sand `#C3BCAC` for `Other`. Grace picked
-this set. Note that the green and the brown are close in lightness (5 and 18 on a
-0-100 relative luminance scale) and separate mostly by hue, so a grayscale print or
-a red-green deficiency would blur them -- a known, accepted trade for the look she
-wants. The brown was lifted from `#8B5E3C` to widen that gap as far as it could go
-without drifting into tan and crowding the trend line.
+`TYPE_COLORS` is the one source for every type colour. Grace chose the set
+("Hearth") from five rendered side by side on her own data: cocoa `#4A3B32`,
+oat `#CBB89D`, leaf green `#6E8B5B`, sand `#C3BCAC` for `Other`. Relative
+luminance 5 / 49 / 23, so the three separate by lightness as well as hue and
+survive grayscale and colour-blind viewing.
 
-`--gold` is `#F2BE22`, brighter than the spec's `#E7B45A`, and still the trend
-line's alone. Clay is still errors only.
+`--gold` is `#E9B44C`, the trend line's alone. It shares a lightness with the oat
+but is far more saturated, which is what keeps the line legible where it crosses a
+Studying segment. Clay is still errors only.
+
+Earlier sets were rejected: slate blue and mauve read as ugly, and a dark
+green / brown pair sat too close in lightness. If this one is revisited, render the
+candidates on real data before changing anything -- hex values in the abstract do
+not predict how a thin stacked bar reads.
 
 There is no chart legend. The by-type bars under the chart are the key: each takes
 its fill and its swatch from the same `TYPE_COLORS` entry and already names the type
