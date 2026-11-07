@@ -310,6 +310,13 @@
 const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwpmi7-HEioMBH-aBQjWs74yvIX7xzQ9Oi475cWZf-CO7JuMuppDourABGzvXbxLSvC/exec';
 
 const TYPES = ['Vocab', 'Studying', 'Speaking'];
+const SERIES = [...TYPES, 'Other'];
+const TYPE_COLORS = {
+  Vocab: '#2F4038',
+  Studying: '#67866F',
+  Speaking: '#9FB8AA',
+  Other: '#C3BCAC'
+};
 const WEEKLY_GOAL_HOURS = 10;   // the bar a Mon-Sun week has to clear to count as met
 const MS_DAY = 86400000;
 // 1970-01-05 was a Monday; epoch day 0 is 1970-01-01, so Mondays are day 4 + 7n.
@@ -322,6 +329,17 @@ let currentPeriod = 'day';
 // Starts empty and is never remembered between sessions: the type is a deliberate
 // choice each time, so a stale chip can't ride along on the next save.
 let selectedTypes = [];
+
+// A session's hours split equally between the types it was tagged with, which is
+// how both the stacked bars and the by-type bars are built. An untagged or unknown
+// type lands on 'Other', and a row tagged twice ('Vocab, Vocab') is one share.
+function typeShares(entry) {
+  const list = parseTypes(entry.type);
+  const names = list.map(t => (TYPES.includes(t) ? t : 'Other'));
+  const uniq = [...new Set(names.length ? names : ['Other'])];
+  const share = entry.hours / uniq.length;
+  return uniq.map(t => [t, share]);
+}
 
 // Types are stored comma-joined in one row, e.g. 'Vocab, Speaking'.
 function parseTypes(raw) {
@@ -711,10 +729,43 @@ function renderTrends() {
     sums.set(k, (sums.get(k) || 0) + e.hours);
   }
 
+  // The same sums again, split by type, for the stacked series.
+  const typeSums = new Map();
+  for (const e of entries) {
+    const k = bucketKey(currentPeriod, e.date);
+    for (const [t, h] of typeShares(e)) {
+      if (!typeSums.has(t)) typeSums.set(t, new Map());
+      const m = typeSums.get(t);
+      m.set(k, (m.get(k) || 0) + h);
+    }
+  }
+
   const buckets = buildBuckets(currentPeriod);
   const labels = buckets.map(b => b.label);
   const values = buckets.map(b => Math.round((sums.get(b.key) || 0) * 100) / 100);
   const trend = movingAverage(values, 3, buckets);
+
+  // One dataset per type that actually appears in this window; an unused type is
+  // left out rather than sitting in the legend as a colour that never shows.
+  const barSets = SERIES.filter(t => {
+    const m = typeSums.get(t);
+    return m && buckets.some(b => m.get(b.key));
+  }).map(t => {
+    const m = typeSums.get(t);
+    return {
+      type: 'bar',
+      label: t,
+      // full precision: rounding each series first leaves the stack a hundredth
+      // short of the day's own total, which the tooltip footer would then report
+      data: buckets.map(b => m.get(b.key) || 0),
+      backgroundColor: TYPE_COLORS[t],
+      borderRadius: 2,
+      categoryPercentage: 0.88,
+      barPercentage: 0.9,
+      stack: 'types',
+      order: 2
+    };
+  });
 
   const ctx = document.getElementById('chart').getContext('2d');
   if (chartInstance) chartInstance.destroy();
@@ -722,23 +773,17 @@ function renderTrends() {
     data: {
       labels,
       datasets: [
-        {
-          type: 'bar',
-          data: values,
-          backgroundColor: '#4B6358',
-          borderRadius: 3,
-          categoryPercentage: 0.88,
-          barPercentage: 0.9,
-          order: 2
-        },
+        ...barSets,
         {
           type: 'line',
+          label: 'trend',
           data: trend,
           borderColor: '#E7B45A',
           borderWidth: 2,
           pointRadius: 0,
           tension: 0.3,
           fill: false,
+          stack: 'trend',
           order: 1
         }
       ]
@@ -748,15 +793,35 @@ function renderTrends() {
       maintainAspectRatio: false,
       animation: false,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: barSets.length > 0,
+          position: 'bottom',
+          labels: {
+            boxWidth: 10,
+            boxHeight: 10,
+            color: '#7C7566',
+            font: { size: 11 },
+            padding: 12,
+            filter: item => item.text !== 'trend'
+          }
+        },
         tooltip: {
           callbacks: {
-            label: c => c.datasetIndex === 0 ? withUnit(c.parsed.y) : `trend ${fmtHours(c.parsed.y)}`
+            // A type contributing nothing to this bucket is noise in the tooltip.
+            label: c => c.dataset.label === 'trend'
+              ? `trend ${fmtHours(c.parsed.y)}`
+              : (c.parsed.y ? `${c.dataset.label} ${withUnit(c.parsed.y)}` : null),
+            footer: items => {
+              const bars = items.filter(i => i.dataset.label !== 'trend');
+              if (bars.length < 2) return '';
+              return `total ${withUnit(bars.reduce((s, i) => s + i.parsed.y, 0))}`;
+            }
           }
         }
       },
       scales: {
         x: {
+          stacked: true,
           ticks: {
             color: '#7C7566',
             font: { size: 10 },
@@ -766,6 +831,7 @@ function renderTrends() {
           grid: { display: false }
         },
         y: {
+          stacked: true,
           beginAtZero: true,
           title: { display: true, text: 'hours', color: '#7C7566', font: { size: 11 } },
           ticks: { color: '#7C7566', font: { size: 11 }, precision: 1 },
@@ -819,16 +885,10 @@ function renderTrends() {
   const inWindow = entries.filter(e => dayNumFromISO(e.date) >= windowStart);
   const byType = new Map();
   for (const e of inWindow) {
-    const list = parseTypes(e.type);
-    const labels = list.length ? list.map(t => TYPES.includes(t) ? t : 'Other') : ['Other'];
-    const share = e.hours / labels.length;
-    for (const t of new Set(labels)) {
-      const n = labels.filter(x => x === t).length;
-      byType.set(t, (byType.get(t) || 0) + share * n);
-    }
+    for (const [t, h] of typeShares(e)) byType.set(t, (byType.get(t) || 0) + h);
   }
   const windowTotal = inWindow.reduce((s, e) => s + e.hours, 0);
-  const rows = [...TYPES, 'Other'].filter(t => byType.get(t));
+  const rows = SERIES.filter(t => byType.get(t));
   breakdownEl.innerHTML = rows.length === 0 ? '' : '<h3>By type</h3>' + rows.map(t => {
     const h = byType.get(t);
     const pct = windowTotal ? Math.round((h / windowTotal) * 100) : 0;

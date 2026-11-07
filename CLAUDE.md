@@ -180,3 +180,23 @@ with nothing logged yet does not break the run: the count starts at yesterday un
 today has an entry, so the number doesn't read zero every morning and jump back up
 at night. Two sessions in one day are still one day, and a future-dated row cannot
 extend it.
+
+## Stacked bars by type
+
+Each bar is one dataset per type, stacked, so a bucket's height is still its total
+hours. `typeShares` is the single place that decides how a session lands on the
+series: its hours split equally between the types it carries, an unknown or missing
+tag goes to `Other`, and a row tagged twice counts once. The by-type bars under the
+chart use the same function, so the two can't drift.
+
+Series data is kept at full precision. Rounding each series first left the stack a
+hundredth below the day's own total, which the tooltip footer would then report.
+
+The trend line sits in its own `stack` group, which is what keeps Chart.js from
+drawing it on top of the bars instead of at its own value. It is excluded from the
+legend by a filter but still appears in the tooltip.
+
+Colours extend the palette into three steps of the app green plus sand for `Other`,
+separated by luminance so they hold up in a thin bar: `#2F4038`, `#67866F`,
+`#9FB8AA`, `#C3BCAC`. Gold stays the trend line's alone, and clay is still errors
+only. Swap `TYPE_COLORS` if a wider hue range is ever wanted.
