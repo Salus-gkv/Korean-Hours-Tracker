@@ -196,7 +196,12 @@ The trend line sits in its own `stack` group, which is what keeps Chart.js from
 drawing it on top of the bars instead of at its own value. It is excluded from the
 legend by a filter but still appears in the tooltip.
 
-Colours extend the palette into three steps of the app green plus sand for `Other`,
-separated by luminance so they hold up in a thin bar: `#2F4038`, `#67866F`,
-`#9FB8AA`, `#C3BCAC`. Gold stays the trend line's alone, and clay is still errors
-only. Swap `TYPE_COLORS` if a wider hue range is ever wanted.
+`TYPE_COLORS` is the one source for every type colour: deep green `#2F4038`,
+slate blue `#5B8291`, mauve `#B08EA2`, sand `#C3BCAC` for `Other`. Different hues
+AND different lightnesses, so the segments also separate in grayscale and for
+colour-blind eyes. Gold stays the trend line's alone, and clay is still errors only.
+
+There is no chart legend. The by-type bars under the chart are the key: each takes
+its fill and its swatch from the same `TYPE_COLORS` entry and already names the type
+beside its hours. Anything that adds a colour must read it from that object, or the
+chart and the key will say different things.

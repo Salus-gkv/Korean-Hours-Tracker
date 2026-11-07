@@ -224,6 +224,14 @@
   .bd-head .v { color: var(--muted); }
   .bd-track { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
   .bd-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .bd-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    margin-right: 7px;
+    vertical-align: baseline;
+  }
   .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 14px; }
   .entries-list { margin-top: 24px; }
   .entry-row {
@@ -313,8 +321,8 @@ const TYPES = ['Vocab', 'Studying', 'Speaking'];
 const SERIES = [...TYPES, 'Other'];
 const TYPE_COLORS = {
   Vocab: '#2F4038',
-  Studying: '#67866F',
-  Speaking: '#9FB8AA',
+  Studying: '#5B8291',
+  Speaking: '#B08EA2',
   Other: '#C3BCAC'
 };
 const WEEKLY_GOAL_HOURS = 10;   // the bar a Mon-Sun week has to clear to count as met
@@ -793,18 +801,9 @@ function renderTrends() {
       maintainAspectRatio: false,
       animation: false,
       plugins: {
-        legend: {
-          display: barSets.length > 0,
-          position: 'bottom',
-          labels: {
-            boxWidth: 10,
-            boxHeight: 10,
-            color: '#7C7566',
-            font: { size: 11 },
-            padding: 12,
-            filter: item => item.text !== 'trend'
-          }
-        },
+        // No legend: the by-type bars under the chart carry the same colours and
+        // name each type beside its hours, so a second key would only repeat them.
+        legend: { display: false },
         tooltip: {
           callbacks: {
             // A type contributing nothing to this bucket is noise in the tooltip.
@@ -893,8 +892,8 @@ function renderTrends() {
     const h = byType.get(t);
     const pct = windowTotal ? Math.round((h / windowTotal) * 100) : 0;
     return `<div class="bd-row">
-        <div class="bd-head"><span>${escapeHtml(t)}</span><span class="v">${withUnit(Math.round(h * 10) / 10)} · ${pct}%</span></div>
-        <div class="bd-track"><div class="bd-fill" style="width:${pct}%"></div></div>
+        <div class="bd-head"><span><span class="bd-dot" style="background:${TYPE_COLORS[t]}"></span>${escapeHtml(t)}</span><span class="v">${withUnit(Math.round(h * 10) / 10)} · ${pct}%</span></div>
+        <div class="bd-track"><div class="bd-fill" style="width:${pct}%;background:${TYPE_COLORS[t]}"></div></div>
       </div>`;
   }).join('');
 
