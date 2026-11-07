@@ -578,7 +578,7 @@ function buildBuckets(period) {
     const today = dayNumFromISO(todayStr());
     for (let i = 29; i >= 0; i--) {
       const n = today - i;
-      out.push({ key: 'd' + n, label: mdLabel(n), startDay: n });
+      out.push({ key: 'd' + n, label: mdLabel(n), startDay: n, endDay: n });
     }
     return out;
   }
@@ -588,7 +588,7 @@ function buildBuckets(period) {
     for (let i = 11; i >= 0; i--) {
       const idx = cur - i;
       const start = idx * span + MONDAY_OFFSET;
-      out.push({ key: period + idx, label: mdLabel(start), startDay: start });
+      out.push({ key: period + idx, label: mdLabel(start), startDay: start, endDay: start + span - 1 });
     }
     return out;
   }
@@ -597,30 +597,52 @@ function buildBuckets(period) {
   for (let i = 11; i >= 0; i--) {
     const idx = cur - i;
     const y = Math.floor(idx / 12), m = idx % 12;
+    const ny = m === 11 ? y + 1 : y, nm = m === 11 ? 0 : m + 1;
     out.push({
       key: 'm' + idx,
       label: m === 0 ? `${MONTH_NAMES[m]} '${String(y).slice(2)}` : MONTH_NAMES[m],
-      startDay: dayNumFromISO(`${y}-${String(m + 1).padStart(2, '0')}-01`)
+      startDay: dayNumFromISO(`${y}-${String(m + 1).padStart(2, '0')}-01`),
+      endDay: dayNumFromISO(`${ny}-${String(nm + 1).padStart(2, '0')}-01`) - 1
     });
   }
   return out;
 }
 
-// The denominator for the average: buckets since logging began, not the whole
-// window. Before the first entry there was no study to average, so counting those
-// empty buckets would quietly divide the average down for the first month. A bucket
-// counts once it reaches the first logged day; the current one always counts.
+// The first day anything was logged. Everything before it is untracked time and is
+// kept out of every average.
+function trackingStart() {
+  return entries.length ? Math.min(...entries.map(e => dayNumFromISO(e.date))) : null;
+}
+
+// The denominator for the average: tracked days, expressed in whole and part
+// buckets. A bucket counts only for the days it shares with the tracked stretch, so
+// a week three days old counts as 3/7 and the month you are six days into as 6/30.
+// Counting those as whole buckets divided the average by untracked time and read
+// far too low. All four periods therefore report the same rate in different units.
 function activeBuckets(buckets) {
-  if (entries.length === 0) return buckets.length;
-  const first = Math.min(...entries.map(e => dayNumFromISO(e.date)));
-  const n = buckets.filter((b, i) => i === buckets.length - 1 || buckets[i + 1].startDay > first).length;
+  const first = trackingStart();
+  if (first === null) return buckets.length;
+  const today = dayNumFromISO(todayStr());
+  let n = 0;
+  for (const b of buckets) {
+    const lo = Math.max(b.startDay, first);
+    const hi = Math.min(b.endDay, today);
+    if (hi >= lo) n += (hi - lo + 1) / (b.endDay - b.startDay + 1);
+  }
   return n || 1;
 }
 
 // 3-bucket simple moving average; partial at the start so the line is continuous.
-function movingAverage(values, window) {
+// Buckets that ended before tracking began are null, not zero: averaging them in
+// would drag the line down with time that was never missed study, only absence of
+// an app. Chart.js simply starts the line at the first tracked bucket.
+function movingAverage(values, window, buckets) {
+  const first = trackingStart();
+  const from0 = first === null ? 0 : buckets.findIndex(b => b.endDay >= first);
+  const start = from0 < 0 ? values.length : from0;
   return values.map((_, i) => {
-    const from = Math.max(0, i - window + 1);
+    if (i < start) return null;
+    const from = Math.max(start, i - window + 1);
     const slice = values.slice(from, i + 1);
     return Math.round((slice.reduce((s, v) => s + v, 0) / slice.length) * 100) / 100;
   });
@@ -668,7 +690,7 @@ function renderTrends() {
   const buckets = buildBuckets(currentPeriod);
   const labels = buckets.map(b => b.label);
   const values = buckets.map(b => Math.round((sums.get(b.key) || 0) * 100) / 100);
-  const trend = movingAverage(values, 3);
+  const trend = movingAverage(values, 3, buckets);
 
   const ctx = document.getElementById('chart').getContext('2d');
   if (chartInstance) chartInstance.destroy();

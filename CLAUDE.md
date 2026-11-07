@@ -135,10 +135,22 @@ Artifact CSP blocks fetch to script.google.com, same as the Weight Log.
 ## The average's denominator
 
 `Avg / <period>` divides the window total by `activeBuckets(buckets)`, not by
-`buckets.length`. Buckets entirely before the first logged entry are not counted,
-because dividing by a flat 30 days made three days of real study read as 0.1
-hrs/day. Once history fills the window the denominator is the full window again,
-and an empty log falls back to the full window rather than dividing by zero.
+`buckets.length`. The denominator is tracked days expressed in buckets: each bucket
+counts only for the days it shares with the stretch from the first logged entry to
+today, so a week three days old is 3/7 and a month six days in is 6/30. Two earlier
+versions were wrong — a flat 30-day denominator, then whole buckets from the first
+entry — and both read far too low, because untracked time before the first entry
+sat inside the first bucket. All four periods now report one rate in different
+units: avg/day x 7 is avg/week.
+
+The consequence is that a short history projects. Eight days at 2.2 hrs/day shows
+65.5 as Avg / month, which is a rate, not hours already studied. `Hours all time`
+is the card that answers "how much have I done".
+
+The trend line follows the same rule: buckets ending before the first entry are
+`null`, not zero, so the moving average does not drag the line down through time
+that was never missed study. An empty log falls back to the full window rather
+than dividing by zero.
 
 ## The Log screen's two resets
 
