@@ -18,7 +18,7 @@
     --line: #D8D2C4;
     --accent: #4B6358;
     --accent-dark: #37493F;
-    --gold: #E7B45A;
+    --gold: #F2BE22;
     --clay: #B5654A;
     --muted: #7C7566;
   }
@@ -321,8 +321,8 @@ const TYPES = ['Vocab', 'Studying', 'Speaking'];
 const SERIES = [...TYPES, 'Other'];
 const TYPE_COLORS = {
   Vocab: '#2F4038',
-  Studying: '#5B8291',
-  Speaking: '#B08EA2',
+  Studying: '#A3BFAF',
+  Speaking: '#9A6B42',
   Other: '#C3BCAC'
 };
 const WEEKLY_GOAL_HOURS = 10;   // the bar a Mon-Sun week has to clear to count as met
@@ -786,7 +786,7 @@ function renderTrends() {
           type: 'line',
           label: 'trend',
           data: trend,
-          borderColor: '#E7B45A',
+          borderColor: '#F2BE22',
           borderWidth: 2,
           pointRadius: 0,
           tension: 0.3,

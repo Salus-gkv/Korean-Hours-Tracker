@@ -196,10 +196,16 @@ The trend line sits in its own `stack` group, which is what keeps Chart.js from
 drawing it on top of the bars instead of at its own value. It is excluded from the
 legend by a filter but still appears in the tooltip.
 
-`TYPE_COLORS` is the one source for every type colour: deep green `#2F4038`,
-slate blue `#5B8291`, mauve `#B08EA2`, sand `#C3BCAC` for `Other`. Different hues
-AND different lightnesses, so the segments also separate in grayscale and for
-colour-blind eyes. Gold stays the trend line's alone, and clay is still errors only.
+`TYPE_COLORS` is the one source for every type colour: dark green `#2F4038`,
+light sage `#A3BFAF`, brown `#9A6B42`, sand `#C3BCAC` for `Other`. Grace picked
+this set. Note that the green and the brown are close in lightness (5 and 18 on a
+0-100 relative luminance scale) and separate mostly by hue, so a grayscale print or
+a red-green deficiency would blur them -- a known, accepted trade for the look she
+wants. The brown was lifted from `#8B5E3C` to widen that gap as far as it could go
+without drifting into tan and crowding the trend line.
+
+`--gold` is `#F2BE22`, brighter than the spec's `#E7B45A`, and still the trend
+line's alone. Clay is still errors only.
 
 There is no chart legend. The by-type bars under the chart are the key: each takes
 its fill and its swatch from the same `TYPE_COLORS` entry and already names the type
