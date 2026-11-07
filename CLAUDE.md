@@ -143,9 +143,13 @@ entry — and both read far too low, because untracked time before the first ent
 sat inside the first bucket. All four periods now report one rate in different
 units: avg/day x 7 is avg/week.
 
-The consequence is that a short history projects. Eight days at 2.2 hrs/day shows
-65.5 as Avg / month, which is a rate, not hours already studied. `Hours all time`
-is the card that answers "how much have I done".
+A short history would otherwise project: eight days at 2.2 hrs/day reads as 65.5
+hrs/month, a rate rather than hours already studied. So `hasCompleteBucket` gates
+the card -- until one bucket has been tracked end to end and is over, the number is
+a dash and the label says what it is waiting for. A bucket that began before the
+first entry never qualifies, which is why Avg / week stays blank until the first
+whole Mon-Sun week has passed. `Hours all time` is the card that answers "how much
+have I done".
 
 The trend line follows the same rule: buckets ending before the first entry are
 `null`, not zero, so the moving average does not drag the line down through time

@@ -619,6 +619,17 @@ function trackingStart() {
 // a week three days old counts as 3/7 and the month you are six days into as 6/30.
 // Counting those as whole buckets divided the average by untracked time and read
 // far too low. All four periods therefore report the same rate in different units.
+// Whether a whole bucket has been tracked from end to end. Until one has, the
+// average is a projection out of a part bucket -- eight days reading as 65.5
+// hrs/month -- so the card shows a dash rather than a number that overstates.
+// The bucket holding today is still in progress and does not count.
+function hasCompleteBucket(buckets) {
+  const first = trackingStart();
+  if (first === null) return false;
+  const today = dayNumFromISO(todayStr());
+  return buckets.some(b => b.startDay >= first && b.endDay < today);
+}
+
 function activeBuckets(buckets) {
   const first = trackingStart();
   if (first === null) return buckets.length;
@@ -764,16 +775,22 @@ function renderTrends() {
   const avgLabel = {
     day: 'Avg / day', week: 'Avg / week', fort: 'Avg / 2 wks', month: 'Avg / month'
   }[currentPeriod];
+  const unitWord = {
+    day: 'day', week: 'week', fort: '2 weeks', month: 'month'
+  }[currentPeriod];
 
   const total = values.reduce((s, v) => s + v, 0);
   const avg = total / activeBuckets(buckets);
   const allTime = entries.reduce((s, e) => s + e.hours, 0);
   const met = weeksGoalMet();
   const round1 = n => Math.round(n * 10) / 10;
+  const avgReady = hasCompleteBucket(buckets);
+  const avgNum = avgReady ? fmtHours(round1(avg)) : '—';
+  const avgLbl = avgReady ? avgLabel : `${avgLabel} · after a full ${unitWord}`;
 
   statsGrid.innerHTML = `
     <div class="stat"><div class="num">${fmtHours(round1(total))}</div><div class="lbl">${windowLabel}</div></div>
-    <div class="stat"><div class="num">${fmtHours(round1(avg))}</div><div class="lbl">${avgLabel}</div></div>
+    <div class="stat"><div class="num">${avgNum}</div><div class="lbl">${avgLbl}</div></div>
     <div class="stat"><div class="num">${fmtHours(round1(allTime))}</div><div class="lbl">Hours all time</div></div>
     <div class="stat"><div class="num">${met}</div><div class="lbl">Weeks hitting ${WEEKLY_GOAL_HOURS} hrs</div></div>
   `;
