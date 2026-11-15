@@ -325,10 +325,11 @@ const TYPE_COLORS = {
   Speaking: '#6E8B5B',
   Other: '#C3BCAC'
 };
-const WEEKLY_GOAL_HOURS = 10;   // the bar a Mon-Sun week has to clear to count as met
+const WEEKLY_GOAL_HOURS = 10;   // the bar a Sat-Fri week has to clear to count as met
 const MS_DAY = 86400000;
-// 1970-01-05 was a Monday; epoch day 0 is 1970-01-01, so Mondays are day 4 + 7n.
-const MONDAY_OFFSET = 4;
+// Weeks run Saturday to Friday. Epoch day 0 is Thursday 1970-01-01, so the first
+// Saturday is day 2 and every week starts on day 2 + 7n.
+const WEEK_OFFSET = 2;
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 let entries = [];
@@ -594,7 +595,7 @@ function bucketKey(period, iso) {
   const n = dayNumFromISO(iso);
   if (period === 'day') return 'd' + n;
   const span = period === 'week' ? 7 : 14;
-  return period + Math.floor((n - MONDAY_OFFSET) / span);
+  return period + Math.floor((n - WEEK_OFFSET) / span);
 }
 
 // The buckets to draw, oldest first. Each has a key, a label, and a start day.
@@ -610,10 +611,10 @@ function buildBuckets(period) {
   }
   if (period === 'week' || period === 'fort') {
     const span = period === 'week' ? 7 : 14;
-    const cur = Math.floor((dayNumFromISO(todayStr()) - MONDAY_OFFSET) / span);
+    const cur = Math.floor((dayNumFromISO(todayStr()) - WEEK_OFFSET) / span);
     for (let i = 11; i >= 0; i--) {
       const idx = cur - i;
-      const start = idx * span + MONDAY_OFFSET;
+      const start = idx * span + WEEK_OFFSET;
       out.push({ key: period + idx, label: mdLabel(start), startDay: start, endDay: start + span - 1 });
     }
     return out;
@@ -698,14 +699,14 @@ function movingAverage(values, window, buckets) {
   });
 }
 
-// How many Mon-Sun weeks have ever reached the goal. A running total with no
+// How many Sat-Fri weeks have ever reached the goal. A running total with no
 // denominator: it only goes up, and the selected period does not change it.
 // Empty weeks can't qualify, so grouping the entries is enough — no need to walk
 // the calendar. The current week counts as soon as it clears the bar.
 function weeksGoalMet() {
   const sums = new Map();
   for (const e of entries) {
-    const wk = Math.floor((dayNumFromISO(e.date) - MONDAY_OFFSET) / 7);
+    const wk = Math.floor((dayNumFromISO(e.date) - WEEK_OFFSET) / 7);
     sums.set(wk, (sums.get(wk) || 0) + e.hours);
   }
   let n = 0;
@@ -845,12 +846,10 @@ function renderTrends() {
   // top-left card is the streak instead of a window total, which there would read as
   // the same number as all-time directly beneath it. The other periods name their
   // window ("Total, last 12 weeks") for the same reason.
-  const windowLabel = {
-    day: 'Total, last 30 days',
-    week: 'Total, last 12 weeks',
-    fort: 'Total, last 24 weeks',
-    month: 'Total, last 12 months'
-  }[currentPeriod];
+  // The window total used to live here, but with a short history it read as the
+  // same number as Hours all time directly beneath it. This is the period in
+  // progress instead: hours so far this week, fortnight or month.
+  const periodLabel = 'Total hours this period';
   const avgLabel = {
     day: 'Avg / day', week: 'Avg / week', fort: 'Avg / 2 wks', month: 'Avg / month'
   }[currentPeriod];
@@ -867,10 +866,10 @@ function renderTrends() {
   const avgNum = avgReady ? fmtHours(round1(avg)) : '—';
   const avgLbl = avgReady ? avgLabel : `${avgLabel} · after a full ${unitWord}`;
 
-  const streak = dayStreak();
+  const thisPeriod = values[values.length - 1];
   const topLeft = currentPeriod === 'day'
-    ? `<div class="stat"><div class="num">${streak}</div><div class="lbl">Day streak</div></div>`
-    : `<div class="stat"><div class="num">${fmtHours(round1(total))}</div><div class="lbl">${windowLabel}</div></div>`;
+    ? `<div class="stat"><div class="num">${dayStreak()}</div><div class="lbl">Day streak</div></div>`
+    : `<div class="stat"><div class="num">${fmtHours(round1(thisPeriod))}</div><div class="lbl">${periodLabel}</div></div>`;
 
   statsGrid.innerHTML = `
     ${topLeft}

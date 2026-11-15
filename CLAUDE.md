@@ -78,7 +78,7 @@ whole layout — don't reorder them.
   all-time directly beneath it, which reads as a bug. Keep the label dynamic.
 - Avg is window total / bucket count, so it means "per day" on Day and "per month" on Month. Grace
   asked for it this way specifically after trying a fixed per-day/per-week pair.
-- `weeksGoalMet()` is a LIFETIME running count with no denominator: every Mon-Sun week that ever
+- `weeksGoalMet()` is a LIFETIME running count with no denominator: every Sat-Fri week that ever
   reached `WEEKLY_GOAL_HOURS` (10), including weeks far outside the selected window. It only goes
   up. A week counts at >= the goal, so exactly 10 qualifies, and the current week counts the moment
   it clears. Empty weeks can't qualify, so grouping the entries is enough.
@@ -86,7 +86,10 @@ whole layout — don't reorder them.
 
 ## Trends bucketing
 - Day = last 30 days, Week = last 12 weeks, 2 Weeks = last 12 fortnights, Month = last 12 calendar months.
-- Weeks and fortnights start Monday, anchored on epoch day 4 (1970-01-05 was a Monday), so buckets
+- Weeks and fortnights start SATURDAY and end Friday, anchored on epoch day 2 (epoch day 0 is
+  Thursday 1970-01-01, so the first Saturday is day 2). Grace changed this from Monday on
+  2026-11-14; `WEEK_OFFSET` is the only knob, and moving it re-buckets the chart, the weekly goal
+  count and the average's partial weeks together. Buckets
   stay stable regardless of when the app is opened.
 - Trend line is a 3-bucket simple moving average, partial at the start so the line is continuous.
 - Empty buckets render as zero-height bars, not gaps. Seeing the zeros is the point.
@@ -148,7 +151,7 @@ hrs/month, a rate rather than hours already studied. So `hasCompleteBucket` gate
 the card -- until one bucket has been tracked end to end and is over, the number is
 a dash and the label says what it is waiting for. A bucket that began before the
 first entry never qualifies, which is why Avg / week stays blank until the first
-whole Mon-Sun week has passed. `Hours all time` is the card that answers "how much
+whole Sat-Fri week has passed. `Hours all time` is the card that answers "how much
 have I done".
 
 The trend line follows the same rule: buckets ending before the first entry are
@@ -215,3 +218,11 @@ There is no chart legend. The by-type bars under the chart are the key: each tak
 its fill and its swatch from the same `TYPE_COLORS` entry and already names the type
 beside its hours. Anything that adds a colour must read it from that object, or the
 chart and the key will say different things.
+
+## The top-left stat card
+
+Day shows the streak. Week, 2 Weeks and Month show `Total hours this period` -- the
+bucket in progress, not the 12-bucket window. The window total used to sit here and
+read as the same number as `Hours all time` directly beneath it, which is what made
+it worth replacing. It is `values[values.length - 1]`, so it follows whatever the
+last bucket is, and on the first day of a period it is correctly small.
