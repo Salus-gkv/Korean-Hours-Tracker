@@ -148,11 +148,16 @@ units: avg/day x 7 is avg/week.
 
 A short history would otherwise project: eight days at 2.2 hrs/day reads as 65.5
 hrs/month, a rate rather than hours already studied. So `hasCompleteBucket` gates
-the card -- until one bucket has been tracked end to end and is over, the number is
-a dash and the label says what it is waiting for. A bucket that began before the
-first entry never qualifies, which is why Avg / week stays blank until the first
-whole Sat-Fri week has passed. `Hours all time` is the card that answers "how much
-have I done".
+the card -- until a bucket's worth of FINISHED days has been tracked, the number is
+a dash and the label says what it is waiting for. `Hours all time` is the card that
+answers "how much have I done".
+
+The gate measures a SPAN of days (first entry to yesterday), not a calendar bucket.
+It first required a whole tracked calendar bucket, which left Avg / 2 wks blank
+after 15 days of logging because the only finished fortnight had begun six days
+before the first entry -- Grace spotted it. The month threshold is the current
+month's own length, so 30 in November and 28 in February; that drift is accepted
+for the simpler rule.
 
 The trend line follows the same rule: buckets ending before the first entry are
 `null`, not zero, so the moving average does not drag the line down through time
