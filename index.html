@@ -646,10 +646,15 @@ function trackingStart() {
 // a week three days old counts as 3/7 and the month you are six days into as 6/30.
 // Counting those as whole buckets divided the average by untracked time and read
 // far too low. All four periods therefore report the same rate in different units.
-// Whether a whole bucket has been tracked from end to end. Until one has, the
-// average is a projection out of a part bucket -- eight days reading as 65.5
-// hrs/month -- so the card shows a dash rather than a number that overstates.
-// The bucket holding today is still in progress and does not count.
+// Whether enough time has been tracked for the average to mean anything: at least
+// one bucket's worth of FINISHED days, counted from the first entry to yesterday.
+// Until then the average is a projection out of a part bucket -- eight days reading
+// as 65.5 hrs/month -- and the card shows a dash instead.
+//
+// The test is a span of days, not a calendar bucket. Requiring a whole tracked
+// calendar bucket left the 2 Weeks average blank after 15 days of logging, because
+// the only finished fortnight had begun six days before the first entry. Today is
+// still in progress and never counts toward the span.
 // Days in a row with at least one session, counted back from today. A day with
 // nothing logged yet does not break the run: the count starts at yesterday until
 // today has an entry, so the streak doesn't read zero every morning and then jump
@@ -667,7 +672,10 @@ function hasCompleteBucket(buckets) {
   const first = trackingStart();
   if (first === null) return false;
   const today = dayNumFromISO(todayStr());
-  return buckets.some(b => b.startDay >= first && b.endDay < today);
+  const trackedDays = today - first;          // finished days only
+  const last = buckets[buckets.length - 1];
+  const bucketDays = last.endDay - last.startDay + 1;
+  return trackedDays >= bucketDays;
 }
 
 function activeBuckets(buckets) {
