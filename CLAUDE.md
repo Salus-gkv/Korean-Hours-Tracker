@@ -231,3 +231,17 @@ bucket in progress, not the 12-bucket window. The window total used to sit here 
 read as the same number as `Hours all time` directly beneath it, which is what made
 it worth replacing. It is `values[values.length - 1]`, so it follows whatever the
 last bucket is, and on the first day of a period it is correctly small.
+
+## The right-hand hours axis
+
+The newest bar is always hard against the right edge, furthest from the left axis,
+which made it the hardest bar to read. `yRight` mirrors the hours axis on that side.
+It carries no data: `afterDataLimits` copies the left scale's min and max and
+`afterBuildTicks` copies its tick values, so the two can never show different
+scales. Both use one `tickHours` formatter, because Chart.js re-formats each
+scale's labels after the ticks are built -- copying the tick objects alone still
+left the left axis reading 1.0 where the right read 1.
+
+A value drawn above the newest bar was tried first and removed: centred on a bar at
+the far right it overlapped the axis labels, and it said what the axis now says.
+Per-bar labels are not an option anyway -- the Day view has 30 bars on a phone.

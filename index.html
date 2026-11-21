@@ -784,6 +784,10 @@ function renderTrends() {
     };
   });
 
+  // Shared by both hour axes so the left and right can never label the same value
+  // differently; Chart.js re-formats each scale's labels after the ticks are built.
+  const tickHours = v => fmtHours(v);
+
   const ctx = document.getElementById('chart').getContext('2d');
   if (chartInstance) chartInstance.destroy();
   chartInstance = new Chart(ctx, {
@@ -842,8 +846,30 @@ function renderTrends() {
           stacked: true,
           beginAtZero: true,
           title: { display: true, text: 'hours', color: '#7C7566', font: { size: 11 } },
-          ticks: { color: '#7C7566', font: { size: 11 }, precision: 1 },
+          ticks: { color: '#7C7566', font: { size: 11 }, precision: 1, callback: tickHours },
           grid: { color: '#D8D2C4' }
+        },
+        // The newest bar sits hard against the right edge, furthest from the left
+        // axis. This mirrors that axis so its value is readable without tracking
+        // a gridline across the whole chart. It carries no data of its own; the
+        // bounds are copied from the left scale so the two can never disagree.
+        yRight: {
+          position: 'right',
+          stacked: true,
+          beginAtZero: true,
+          ticks: { color: '#7C7566', font: { size: 11 }, precision: 1, callback: tickHours },
+          grid: { display: false },
+          afterDataLimits: scale => {
+            const left = scale.chart.scales.y;
+            if (!left) return;
+            scale.min = left.min;
+            scale.max = left.max;
+          },
+          // Take the left axis's tick values, so both sides mark the same lines.
+          afterBuildTicks: scale => {
+            const left = scale.chart.scales.y;
+            if (left && left.ticks) scale.ticks = left.ticks.map(t => ({ ...t }));
+          }
         }
       }
     }
